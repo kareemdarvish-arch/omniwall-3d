@@ -120,22 +120,31 @@ class Viewer3D {
   }
 
   getPanelMaterial(colorHex, materialType) {
-    let roughness = 0.72;
-    let metalness = 0.08;
+    let roughness = 0.55;
+    let metalness = 0.06;
+    let finalColor = new THREE.Color(colorHex);
 
     if (materialType === 'cf_petg') {
-      roughness = 0.88;
-      metalness = 0.15;
-    } else if (materialType === 'petg') {
-      roughness = 0.55;
-      metalness = 0.05;
+      // Carbon fiber has darker graphite tone with subtle sheen
+      roughness = 0.94;
+      metalness = 0.22;
+      finalColor.multiplyScalar(0.75); // Darker carbon tint
     } else if (materialType === 'abs') {
+      // ABS has ultra-matte injection-molded appearance
+      roughness = 0.85;
+      metalness = 0.02;
+    } else if (materialType === 'pla_plus') {
+      // PLA+ has crisp satin finish
       roughness = 0.65;
       metalness = 0.04;
+    } else {
+      // PETG Pro: semi-gloss tough industrial flex
+      roughness = 0.42;
+      metalness = 0.08;
     }
 
     return new THREE.MeshStandardMaterial({
-      color: new THREE.Color(colorHex),
+      color: finalColor,
       roughness: roughness,
       metalness: metalness,
     });
@@ -166,25 +175,32 @@ class Viewer3D {
     }
 
     const { cols, rows, activeTiles, panelColor, accessoryColor, material } = state;
+    const currentMat = material || 'petg';
+
     const tileW = 16; // 3D units per modular tile
     const tileH = 16;
-    const tileDepth = 1.2;
+    
+    // Dynamic 3D depth based on material engineering:
+    let tileDepth = 1.3;
+    if (currentMat === 'cf_petg') tileDepth = 1.5;
+    else if (currentMat === 'abs') tileDepth = 1.65;
+    else if (currentMat === 'pla_plus') tileDepth = 1.1;
 
     const totalWidth = cols * tileW;
     const totalHeight = rows * tileH;
     const startX = -totalWidth / 2 + tileW / 2;
     const startY = totalHeight / 2 - tileH / 2;
 
-    const tileMaterial = this.getPanelMaterial(panelColor, material);
+    const tileMaterial = this.getPanelMaterial(panelColor, currentMat);
     const bracketMaterial = new THREE.MeshStandardMaterial({
-      color: 0x111620,
-      roughness: 0.85,
-      metalness: 0.2
+      color: currentMat === 'cf_petg' ? 0x1f242d : 0x111620,
+      roughness: currentMat === 'cf_petg' ? 0.95 : 0.8,
+      metalness: currentMat === 'cf_petg' ? 0.25 : 0.1
     });
     const screwMaterial = this.getAccessoryMaterial('#ffffff', true);
 
-    // Texture for pegboard pill slots
-    const slotTexture = this.generateSlotTexture();
+    // Dynamic procedural texture based on chosen material
+    const slotTexture = this.generateSlotTexture(currentMat);
     const slottedTileMat = tileMaterial.clone();
     slottedTileMat.map = slotTexture;
     slottedTileMat.needsUpdate = true;
@@ -198,15 +214,15 @@ class Viewer3D {
         const posX = startX + c * tileW;
         const posY = startY - r * tileH;
 
-        // Tile body
-        const tileGeo = new THREE.BoxGeometry(tileW - 0.2, tileH - 0.2, tileDepth);
+        // 3D Tile body
+        const tileGeo = new THREE.BoxGeometry(tileW - 0.25, tileH - 0.25, tileDepth);
         const tileMesh = new THREE.Mesh(tileGeo, slottedTileMat);
         tileMesh.position.set(posX, posY, 0);
         tileMesh.castShadow = true;
         tileMesh.receiveShadow = true;
         this.tilesGroup.add(tileMesh);
 
-        // Tile bevel border
+        // Tile bevel border adapted to material thickness
         const borderGeo = new THREE.BoxGeometry(tileW, tileH, 0.4);
         const borderMesh = new THREE.Mesh(borderGeo, bracketMaterial);
         borderMesh.position.set(posX, posY, -0.4);
@@ -214,13 +230,12 @@ class Viewer3D {
       }
     }
 
-    // Add modular corner connectors & brackets (as in the real photo)
+    // Add modular corner connectors & brackets adapted to material:
     for (let r = 0; r <= rows; r++) {
       for (let c = 0; c <= cols; c++) {
         const posX = startX + c * tileW - tileW / 2;
         const posY = startY - r * tileH + tileH / 2;
 
-        // Check if at least one adjacent tile is active
         const hasAdjacent = [
           activeTiles?.[`${r-1}_${c-1}`] !== false && (r > 0 && c > 0),
           activeTiles?.[`${r-1}_${c}`] !== false && (r > 0 && c < cols),
@@ -230,18 +245,35 @@ class Viewer3D {
 
         if (!hasAdjacent) continue;
 
-        // 3D printed cross/corner bracket
-        const bracketGeo = new THREE.BoxGeometry(2.4, 2.4, 0.8);
-        const bracket = new THREE.Mesh(bracketGeo, bracketMaterial);
+        // Physical shape of bracket changes with material:
+        let bracket;
+        if (currentMat === 'cf_petg') {
+          // Hexagonal carbon truss bracket
+          const hexGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.9, 6);
+          hexGeo.rotateX(Math.PI / 2);
+          bracket = new THREE.Mesh(hexGeo, bracketMaterial);
+        } else if (currentMat === 'abs') {
+          // Circular reinforced boss bracket
+          const circGeo = new THREE.CylinderGeometry(1.6, 1.6, 1.0, 16);
+          circGeo.rotateX(Math.PI / 2);
+          bracket = new THREE.Mesh(circGeo, bracketMaterial);
+        } else if (currentMat === 'pla_plus') {
+          // Slim minimalist square bracket
+          bracket = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.9, 0.6), bracketMaterial);
+        } else {
+          // Standard cross bracket
+          bracket = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 0.8), bracketMaterial);
+        }
+
         bracket.position.set(posX, posY, tileDepth / 2 + 0.3);
         bracket.castShadow = true;
         this.bracketGroup.add(bracket);
 
         // Simulated M4 hex mounting screw
-        const screwGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.3, 8);
+        const screwGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.35, 8);
         screwGeo.rotateX(Math.PI / 2);
         const screw = new THREE.Mesh(screwGeo, screwMaterial);
-        screw.position.set(posX, posY, tileDepth / 2 + 0.7);
+        screw.position.set(posX, posY, tileDepth / 2 + 0.75);
         this.bracketGroup.add(screw);
       }
     }
@@ -253,7 +285,7 @@ class Viewer3D {
     this.fitCamera(totalWidth, totalHeight);
   }
 
-  generateSlotTexture() {
+  generateSlotTexture(material = 'petg') {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
@@ -263,22 +295,45 @@ class Viewer3D {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, 512, 512);
 
-    // Draw pill slots (6 columns x 5 rows per tile)
+    // Carbon fiber texture overlay
+    if (material === 'cf_petg') {
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+      ctx.lineWidth = 1.5;
+      for (let i = -512; i < 1024; i += 12) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i + 512, 512);
+        ctx.stroke();
+      }
+    }
+
+    // Draw pill slots adapted to material
     ctx.fillStyle = '#10141a';
     const cols = 6;
     const rows = 5;
     const stepX = 512 / cols;
     const stepY = 512 / rows;
-    const slotW = 12;
-    const slotH = 48;
-    const radius = 6;
+    
+    let slotW = 12;
+    let slotH = 48;
+    let radius = 6;
+
+    if (material === 'cf_petg') {
+      slotW = 14;
+      radius = 2; // Hex chamfered
+    } else if (material === 'abs') {
+      slotW = 15;
+      radius = 7.5; // Wider thermal oval
+    } else if (material === 'pla_plus') {
+      slotW = 10;
+      radius = 3; // Slim precision
+    }
 
     for (let i = 0; i < cols; i++) {
       for (let j = 0; j < rows; j++) {
         const cx = (i + 0.5) * stepX;
         const cy = (j + 0.5) * stepY;
 
-        // Draw pill shape
         if (ctx.roundRect) {
           ctx.beginPath();
           ctx.roundRect(cx - slotW / 2, cy - slotH / 2, slotW, slotH, radius);
@@ -288,7 +343,7 @@ class Viewer3D {
         }
 
         // Subtle bevel inner shadow
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.strokeStyle = material === 'cf_petg' ? 'rgba(249, 115, 22, 0.25)' : 'rgba(255, 255, 255, 0.15)';
         ctx.lineWidth = 2;
         ctx.stroke();
       }

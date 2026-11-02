@@ -185,27 +185,33 @@
           <span class="text-[10px] text-emerald-400 font-mono font-medium">FDM/FFF Additive</span>
         </div>
 
-        <div class="grid grid-cols-2 gap-2">
-          <!-- PETG -->
-          <div class="material-card border-2 border-orange-500 bg-orange-500/10 rounded-xl p-2.5 cursor-pointer transition-all" data-material="petg">
+        <div class="grid grid-cols-2 gap-2.5">
+          <!-- PETG Pro -->
+          <div class="material-card border-2 border-orange-500 ring-2 ring-orange-500/30 bg-orange-500/15 rounded-xl p-2.5 cursor-pointer transition-all shadow-lg shadow-orange-500/10 scale-[1.02] relative" data-material="petg">
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-bold text-slate-100">PETG Pro</span>
-              <span class="text-[9px] px-1.5 py-0.2 rounded bg-orange-500/20 text-orange-300 font-mono">RECOMMENDED</span>
+              <span class="selected-check-badge text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-500 text-white flex items-center gap-1 font-mono">✓ ACTIVE</span>
             </div>
-            <p class="text-[10px] text-slate-400 leading-tight mb-1.5">Impact resistant, garage chemical & oil proof.</p>
+            <p class="text-[10px] text-slate-300 leading-tight mb-1">Impact tough, garage oil & chemical proof.</p>
+            <div class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900/60 text-orange-400 font-mono mb-1.5 border border-slate-700/50">
+              Shape: 9mm Stress-Relief Fillets
+            </div>
             <div class="text-[10px] font-mono text-slate-300 flex justify-between">
               <span>Max Temp:</span>
               <span class="text-orange-400 font-bold">75°C</span>
             </div>
           </div>
 
-          <!-- PLA+ -->
-          <div class="material-card border border-slate-700/80 bg-slate-800/40 rounded-xl p-2.5 cursor-pointer hover:border-slate-600 transition-all" data-material="pla_plus">
+          <!-- PLA+ Tough -->
+          <div class="material-card border border-slate-700/80 bg-slate-800/40 rounded-xl p-2.5 cursor-pointer hover:border-slate-600 transition-all opacity-80 hover:opacity-100 scale-100 relative" data-material="pla_plus">
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-bold text-slate-100">PLA+ Tough</span>
-              <span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-700 text-slate-300 font-mono">AESTHETIC</span>
+              <span class="selected-check-badge hidden text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-500 text-white font-mono">✓ ACTIVE</span>
             </div>
-            <p class="text-[10px] text-slate-400 leading-tight mb-1.5">Ultra rigid, crisp layer finish, eco bioplastic.</p>
+            <p class="text-[10px] text-slate-300 leading-tight mb-1">Ultra rigid, crisp surface finish, bioplastic.</p>
+            <div class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900/60 text-slate-300 font-mono mb-1.5 border border-slate-700/50">
+              Shape: 3mm Razor Precision Chamfer
+            </div>
             <div class="text-[10px] font-mono text-slate-300 flex justify-between">
               <span>Max Temp:</span>
               <span class="text-slate-400 font-bold">55°C</span>
@@ -213,12 +219,15 @@
           </div>
 
           <!-- ABS / ASA -->
-          <div class="material-card border border-slate-700/80 bg-slate-800/40 rounded-xl p-2.5 cursor-pointer hover:border-slate-600 transition-all" data-material="abs">
+          <div class="material-card border border-slate-700/80 bg-slate-800/40 rounded-xl p-2.5 cursor-pointer hover:border-slate-600 transition-all opacity-80 hover:opacity-100 scale-100 relative" data-material="abs">
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-bold text-slate-100">ABS / ASA</span>
-              <span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-700 text-slate-300 font-mono">HEAT & UV</span>
+              <span class="selected-check-badge hidden text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-500 text-white font-mono">✓ ACTIVE</span>
             </div>
-            <p class="text-[10px] text-slate-400 leading-tight mb-1.5">High thermal endurance for hot sheds & sunlight.</p>
+            <p class="text-[10px] text-slate-300 leading-tight mb-1">High heat & UV resistant for outdoor sheds.</p>
+            <div class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900/60 text-slate-300 font-mono mb-1.5 border border-slate-700/50">
+              Shape: 15mm Anti-Warp Boss Curves
+            </div>
             <div class="text-[10px] font-mono text-slate-300 flex justify-between">
               <span>Max Temp:</span>
               <span class="text-slate-400 font-bold">95°C</span>
@@ -226,12 +235,15 @@
           </div>
 
           <!-- Carbon Fiber PETG -->
-          <div class="material-card border border-slate-700/80 bg-slate-800/40 rounded-xl p-2.5 cursor-pointer hover:border-slate-600 transition-all" data-material="cf_petg">
+          <div class="material-card border border-slate-700/80 bg-slate-800/40 rounded-xl p-2.5 cursor-pointer hover:border-slate-600 transition-all opacity-80 hover:opacity-100 scale-100 relative" data-material="cf_petg">
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-bold text-slate-100">CF-PETG</span>
-              <span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-700 text-slate-300 font-mono">INDUSTRIAL</span>
+              <span class="selected-check-badge hidden text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-500 text-white font-mono">✓ ACTIVE</span>
             </div>
-            <p class="text-[10px] text-slate-400 leading-tight mb-1.5">15% Carbon fiber micro-fill, maximum rigidity.</p>
+            <p class="text-[10px] text-slate-300 leading-tight mb-1">15% Carbon fiber fill, extreme structural rigidity.</p>
+            <div class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900/60 text-orange-400 font-mono mb-1.5 border border-slate-700/50">
+              Shape: Octagonal Truss & Hex Brackets
+            </div>
             <div class="text-[10px] font-mono text-slate-300 flex justify-between">
               <span>Max Temp:</span>
               <span class="text-slate-400 font-bold">85°C</span>
@@ -300,34 +312,44 @@
     <section class="flex-1 flex flex-col h-auto lg:h-[calc(100vh-61px)] relative bg-[#0d121c] overflow-hidden">
       
       <!-- Canvas Top Control Bar -->
-      <div class="p-3 border-b border-slate-800/80 bg-[#111724]/80 backdrop-blur-md flex items-center justify-between gap-3 z-10">
+      <div class="p-2.5 sm:p-3 border-b border-slate-800/80 bg-[#111724]/90 backdrop-blur-md flex flex-wrap items-center justify-between gap-2.5 z-10">
         
-        <!-- View Mode Switcher: 2D Studio vs 3D Inspector -->
+        <!-- Left: View Mode Switcher -->
         <div class="flex items-center bg-slate-900/90 border border-slate-700/80 rounded-xl p-1 shadow-inner">
           <button id="view-2d-btn" class="tab-active flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 transition-all">
             <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
-            <span>2D Layout Studio</span>
+            <span>2D Studio</span>
           </button>
           <button id="view-3d-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition-all">
             <i data-lucide="box" class="w-3.5 h-3.5"></i>
-            <span>3D Orbit Inspector</span>
+            <span>3D Inspector</span>
           </button>
         </div>
 
-        <!-- Board Dimensions Badge -->
-        <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs font-mono">
-          <i data-lucide="ruler" class="w-3.5 h-3.5 text-orange-400"></i>
-          <span id="summary-dimensions" class="text-slate-200 font-semibold">80 × 60 cm (12 Tiles)</span>
+        <!-- Center: Dynamic Material & Structural Shape Adaptation Indicator -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-500/10 border border-orange-500/30 text-xs">
+          <div class="w-2 h-2 rounded-full bg-orange-400 animate-pulse"></div>
+          <div>
+            <div class="flex items-center gap-1.5 font-mono text-[11px] text-orange-300 font-bold">
+              <span>🧵 Material Shape:</span>
+              <span id="active-material-profile-name">PETG Pro · Stress-Relief Filleted (9mm Radii)</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Quick Toolbar Tools -->
-        <div class="flex items-center gap-2">
-          <button id="reset-preset-btn" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium transition-colors" title="Load layout from graduation prototype photo">
-            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-amber-400"></i>
-            <span class="hidden sm:inline">Photo Layout</span>
+        <!-- Right: Board Tools Toggle Controls (Blank vs Example) -->
+        <div class="flex items-center gap-1.5">
+          <button id="blank-canvas-btn" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/40 text-xs text-orange-300 font-bold transition-all" title="Start with a blank canvas (no pre-built tools)">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-orange-400"></i>
+            <span>Blank Board</span>
           </button>
 
-          <button id="clear-board-btn" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-red-950/40 hover:text-red-400 border border-slate-700 text-xs text-slate-300 font-medium transition-colors" title="Remove all accessories">
+          <button id="load-sample-tools-btn" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium transition-colors" title="Load example tools from photo">
+            <i data-lucide="camera" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span class="hidden sm:inline">Load Example</span>
+          </button>
+
+          <button id="clear-board-btn" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-red-950/40 hover:text-red-400 border border-slate-700 text-xs text-slate-300 font-medium transition-colors" title="Remove all placed tools">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             <span class="hidden sm:inline">Clear</span>
           </button>

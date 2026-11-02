@@ -147,7 +147,17 @@ const MATERIALS = {
     weightMultiplier: 1.02,
     density: '1.27 g/cm³',
     temp: '75°C (167°F)',
-    infill: '25% Gyroid (High Shear)'
+    infill: '25% Gyroid (High Shear)',
+    // Material-specific physical shape adaptations:
+    shapeProfileName: 'Stress-Relief Filleted Tiles',
+    shapeProfileDesc: 'Radiused 9mm stress-relief fillets with reinforced collar slots to prevent layer delamination under heavy shock.',
+    filletRadius: 9,
+    slotStyle: 'reinforced_fillet',
+    bracketStyle: 'cross_dovetail',
+    depth3D: 1.3,
+    roughness: 0.45,
+    metalness: 0.08,
+    infillWatermark: 'PETG PRO · 25% GYROID'
   },
   pla_plus: {
     name: 'PLA+ Tough Bio-Polymer',
@@ -157,7 +167,17 @@ const MATERIALS = {
     weightMultiplier: 1.0,
     density: '1.24 g/cm³',
     temp: '55°C (131°F)',
-    infill: '20% Grid'
+    infill: '20% Grid',
+    // Material-specific physical shape adaptations:
+    shapeProfileName: 'Precision Razor Chamfered Tiles',
+    shapeProfileDesc: 'Crisp 3mm razor corners with slim precision-cut pill slots for high mechanical rigidity and neat aesthetics.',
+    filletRadius: 3,
+    slotStyle: 'sharp_precision',
+    bracketStyle: 'slim_flush',
+    depth3D: 1.1,
+    roughness: 0.65,
+    metalness: 0.04,
+    infillWatermark: 'PLA+ TOUGH · 20% GRID'
   },
   abs: {
     name: 'ABS / ASA Industrial',
@@ -167,7 +187,17 @@ const MATERIALS = {
     weightMultiplier: 0.95,
     density: '1.05 g/cm³',
     temp: '95°C (203°F)',
-    infill: '30% Triangular'
+    infill: '30% Triangular',
+    // Material-specific physical shape adaptations:
+    shapeProfileName: 'Heavy Thermal Anti-Warp Profile',
+    shapeProfileDesc: 'Bulbous 15mm corner curves with circular boss brackets to counter thermal shrinkage and corner bed peeling.',
+    filletRadius: 15,
+    slotStyle: 'thermal_relief_oval',
+    bracketStyle: 'circular_boss',
+    depth3D: 1.6,
+    roughness: 0.82,
+    metalness: 0.02,
+    infillWatermark: 'ABS / ASA · 30% TRIANGULAR'
   },
   cf_petg: {
     name: 'Carbon Fiber Reinforced PETG',
@@ -177,7 +207,18 @@ const MATERIALS = {
     weightMultiplier: 1.05,
     density: '1.30 g/cm³',
     temp: '85°C (185°F)',
-    infill: '30% Honeycomb'
+    infill: '30% Honeycomb',
+    // Material-specific physical shape adaptations:
+    shapeProfileName: 'Octagonal Chamfer & Truss Grid',
+    shapeProfileDesc: '45-degree chamfered octagonal tile trusses with carbon micro-weave stippling and reinforced hex brackets.',
+    filletRadius: 6,
+    isOctagon: true,
+    slotStyle: 'hex_truss',
+    bracketStyle: 'hex_gusset',
+    depth3D: 1.5,
+    roughness: 0.94,
+    metalness: 0.20,
+    infillWatermark: 'CF-PETG · 30% HONEYCOMB'
   }
 };
 
@@ -227,8 +268,14 @@ class OmniWallApp {
   }
 
   init() {
-    // 1. Load initial photo prototype preset
-    this.loadPrototypePreset();
+    // 1. Start with a completely clean blank board by default so customer has an unblocked view
+    this.state.placedAccessories = [];
+    this.state.cols = 4;
+    this.state.rows = 3;
+    this.state.panelColor = '#303947';
+    this.state.accessoryColor = '#f97316';
+    this.state.material = 'petg';
+    this.state.activeTiles = {};
 
     // 2. Initialize 2D Canvas Studio
     this.canvas2d = new Canvas2DStudio('studio-canvas', {
@@ -247,6 +294,7 @@ class OmniWallApp {
     // 4. Render UI components
     this.renderAccessoriesLibrary();
     this.setupEventListeners();
+    this.updateMaterialUI();
 
     // 5. Initial sync
     this.canvas2d.setState(this.state);
@@ -255,6 +303,38 @@ class OmniWallApp {
 
     // 6. Check URL hash for shared design
     this.loadFromUrlHash();
+  }
+
+  setMaterial(materialKey) {
+    if (!MATERIALS[materialKey]) return;
+    this.state.material = materialKey;
+    this.updateMaterialUI();
+    this.syncBoard();
+  }
+
+  updateMaterialUI() {
+    const mat = MATERIALS[this.state.material] || MATERIALS.petg;
+
+    // Update Material Cards in left sidebar
+    document.querySelectorAll('.material-card').forEach(card => {
+      const isSelected = (card.dataset.material === this.state.material);
+      const checkEl = card.querySelector('.selected-check-badge');
+      if (isSelected) {
+        card.className = 'material-card border-2 border-orange-500 ring-2 ring-orange-500/30 bg-orange-500/15 rounded-xl p-2.5 cursor-pointer transition-all shadow-lg shadow-orange-500/10 scale-[1.02] relative';
+        if (checkEl) checkEl.classList.remove('hidden');
+      } else {
+        card.className = 'material-card border border-slate-700/80 bg-slate-800/40 rounded-xl p-2.5 cursor-pointer hover:border-slate-600 transition-all opacity-80 hover:opacity-100 scale-100 relative';
+        if (checkEl) checkEl.classList.add('hidden');
+      }
+    });
+
+    // Update Live Shape Profile Banner on Canvas Top Bar
+    const profileNameEl = document.getElementById('active-material-profile-name');
+    if (profileNameEl) profileNameEl.innerText = `${mat.name} · ${mat.shapeProfileName}`;
+
+    // Update summary panels
+    const summaryMatEl = document.getElementById('summary-material');
+    if (summaryMatEl) summaryMatEl.innerText = mat.name;
   }
 
   loadPrototypePreset() {
@@ -389,10 +469,7 @@ class OmniWallApp {
     // 3. Material Selection Cards
     document.querySelectorAll('.material-card').forEach(card => {
       card.addEventListener('click', () => {
-        document.querySelectorAll('.material-card').forEach(c => c.classList.remove('border-orange-500', 'bg-orange-500/10'));
-        card.classList.add('border-orange-500', 'bg-orange-500/10');
-        this.state.material = card.dataset.material;
-        this.syncBoard();
+        this.setMaterial(card.dataset.material);
       });
     });
 
@@ -494,12 +571,20 @@ class OmniWallApp {
       });
     }
 
-    // 9. Quick Actions
+    // 9. Quick Actions & Tools Board Toggles
     document.getElementById('clear-board-btn')?.addEventListener('click', () => {
-      if (confirm('Clear all tools from the pegboard?')) {
-        this.canvas2d.clearAllAccessories();
-        if (this.viewer3d) this.viewer3d.updateAccessories(this.state);
-      }
+      this.canvas2d.clearAllAccessories();
+      if (this.viewer3d) this.viewer3d.updateAccessories(this.state);
+    });
+
+    document.getElementById('blank-canvas-btn')?.addEventListener('click', () => {
+      this.canvas2d.clearAllAccessories();
+      if (this.viewer3d) this.viewer3d.updateAccessories(this.state);
+    });
+
+    document.getElementById('load-sample-tools-btn')?.addEventListener('click', () => {
+      this.loadPrototypePreset();
+      this.syncBoard();
     });
 
     document.getElementById('reset-preset-btn')?.addEventListener('click', () => {

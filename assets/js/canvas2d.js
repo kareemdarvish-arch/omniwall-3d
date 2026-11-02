@@ -158,13 +158,13 @@ class Canvas2DStudio {
     ctx.fillRect(board.x, board.y, board.width, board.height);
     ctx.restore();
 
-    // 2. Draw modular tiles
+    // 2. Draw modular tiles with material-specific physical shape & textures
     this.renderTiles(board);
 
-    // 3. Draw corner connecting clips & screws
+    // 3. Draw corner connecting clips & screws adapted to material
     this.renderBracketsAndMounts(board);
 
-    // 4. Draw placed accessories
+    // 4. Draw placed accessories or clean board guidance
     this.renderAccessories(board);
 
     // 5. Draw selection overlay and action buttons
@@ -177,6 +177,7 @@ class Canvas2DStudio {
     const ctx = this.ctx;
     const { cols, rows, tilePx, x: startX, y: startY } = board;
     const { activeTiles, panelColor, material } = this.state;
+    const currentMat = material || 'petg';
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -188,48 +189,148 @@ class Canvas2DStudio {
         const pad = 2;
         const size = tilePx - pad * 2;
 
-        // Tile body base with 3D bevel effect
         ctx.save();
         ctx.fillStyle = panelColor || '#2d3748';
-        ctx.beginPath();
-        ctx.roundRect(tileX + pad, tileY + pad, size, size, 8);
-        ctx.fill();
 
-        // Subtle textured 3D print layer line sheen
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        // Shape Adaptation: Physical geometry changes depending on chosen material!
+        if (currentMat === 'cf_petg') {
+          // CF-PETG: Octagonal chamfered 45° corner trusses for maximum shear stiffness
+          const chamfer = Math.max(size * 0.09, 8);
+          ctx.beginPath();
+          ctx.moveTo(tileX + pad + chamfer, tileY + pad);
+          ctx.lineTo(tileX + pad + size - chamfer, tileY + pad);
+          ctx.lineTo(tileX + pad + size, tileY + pad + chamfer);
+          ctx.lineTo(tileX + pad + size, tileY + pad + size - chamfer);
+          ctx.lineTo(tileX + pad + size - chamfer, tileY + pad + size);
+          ctx.lineTo(tileX + pad + chamfer, tileY + pad + size);
+          ctx.lineTo(tileX + pad, tileY + pad + size - chamfer);
+          ctx.lineTo(tileX + pad, tileY + pad + chamfer);
+          ctx.closePath();
+          ctx.fill();
 
-        // Inner shadow on top & left
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+          // Carbon Fiber diagonal micro-weave texture
+          this.renderCarbonTexture(tileX + pad, tileY + pad, size);
+
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.lineWidth = 1.8;
+          ctx.stroke();
+
+        } else if (currentMat === 'abs') {
+          // ABS / ASA: Heavy thermal-relief rounded corners (16px) to eliminate corner warp
+          ctx.beginPath();
+          ctx.roundRect(tileX + pad, tileY + pad, size, size, 16);
+          ctx.fill();
+
+          // Concentric thermal expansion ring
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(tileX + pad + 3.5, tileY + pad + 3.5, size - 7, size - 7, 13);
+          ctx.stroke();
+
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+
+        } else if (currentMat === 'pla_plus') {
+          // PLA+ Tough: Ultra-crisp razor corners (3px) with high-tensile precision edges
+          ctx.beginPath();
+          ctx.roundRect(tileX + pad, tileY + pad, size, size, 3);
+          ctx.fill();
+
+          // Clean machined edge highlight
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+
+        } else {
+          // PETG Pro: Standard impact-absorbing fillets (9px) with reinforced slot borders
+          ctx.beginPath();
+          ctx.roundRect(tileX + pad, tileY + pad, size, size, 9);
+          ctx.fill();
+
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+
+        // Inner bevel light and shadow
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(tileX + pad + 8, tileY + pad + 1);
-        ctx.lineTo(tileX + pad + size - 8, tileY + pad + 1);
+        ctx.moveTo(tileX + pad + 10, tileY + pad + 1.5);
+        ctx.lineTo(tileX + pad + size - 10, tileY + pad + 1.5);
         ctx.stroke();
 
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
         ctx.beginPath();
-        ctx.moveTo(tileX + pad + 8, tileY + pad + size - 1);
-        ctx.lineTo(tileX + pad + size - 8, tileY + pad + size - 1);
+        ctx.moveTo(tileX + pad + 10, tileY + pad + size - 1.5);
+        ctx.lineTo(tileX + pad + size - 10, tileY + pad + size - 1.5);
         ctx.stroke();
 
-        // Draw signature pill slots (6 cols x 5 rows per tile)
-        this.renderTileSlots(tileX + pad, tileY + pad, size);
+        // Draw slots adapted to material geometry
+        this.renderTileSlots(tileX + pad, tileY + pad, size, currentMat);
+
+        // Material Engineering Stamp on bottom of tile
+        this.renderTileStamp(tileX + pad, tileY + pad, size, currentMat);
 
         ctx.restore();
       }
     }
   }
 
-  renderTileSlots(tileX, tileY, size) {
+  renderCarbonTexture(tileX, tileY, size) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.lineWidth = 1;
+    const step = 8;
+    for (let d = -size; d < size * 2; d += step) {
+      ctx.beginPath();
+      ctx.moveTo(tileX + d, tileY);
+      ctx.lineTo(tileX + d + size, tileY + size);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  renderTileStamp(tileX, tileY, size, material) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.font = `600 ${Math.max(size * 0.05, 7)}px 'JetBrains Mono', monospace`;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+    ctx.textAlign = 'right';
+
+    let label = 'PETG PRO · 25% GYROID';
+    if (material === 'cf_petg') label = 'CF-PETG · 30% HONEYCOMB';
+    else if (material === 'pla_plus') label = 'PLA+ · 20% GRID';
+    else if (material === 'abs') label = 'ABS/ASA · 30% TRIANGULAR';
+
+    ctx.fillText(label, tileX + size - 8, tileY + size - 6);
+    ctx.restore();
+  }
+
+  renderTileSlots(tileX, tileY, size, material) {
     const ctx = this.ctx;
     const slotCols = 6;
     const slotRows = 5;
     const stepX = size / slotCols;
     const stepY = size / slotRows;
-    const slotW = Math.max(size * 0.045, 4);
-    const slotH = Math.max(size * 0.12, 11);
+
+    let slotW = Math.max(size * 0.045, 4);
+    let slotH = Math.max(size * 0.12, 11);
+    let cornerR = slotW / 2;
+
+    if (material === 'cf_petg') {
+      slotW = Math.max(size * 0.05, 5); // Hex chamfered slots
+      cornerR = 1;
+    } else if (material === 'abs') {
+      slotW = Math.max(size * 0.052, 5.2); // Wider thermal expansion slots
+      cornerR = slotW / 2;
+    } else if (material === 'pla_plus') {
+      slotW = Math.max(size * 0.04, 3.8); // Slim precision slots
+      cornerR = 2;
+    }
 
     ctx.fillStyle = '#0b0f15'; // Dark slot recess
 
@@ -239,11 +340,11 @@ class Canvas2DStudio {
         const cy = tileY + (j + 0.5) * stepY;
 
         ctx.beginPath();
-        ctx.roundRect(cx - slotW / 2, cy - slotH / 2, slotW, slotH, slotW / 2);
+        ctx.roundRect(cx - slotW / 2, cy - slotH / 2, slotW, slotH, cornerR);
         ctx.fill();
 
         // Slot bevel highlight
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.strokeStyle = material === 'cf_petg' ? 'rgba(249, 115, 22, 0.15)' : 'rgba(255, 255, 255, 0.07)';
         ctx.lineWidth = 0.8;
         ctx.stroke();
       }
@@ -253,7 +354,8 @@ class Canvas2DStudio {
   renderBracketsAndMounts(board) {
     const ctx = this.ctx;
     const { cols, rows, tilePx, x: startX, y: startY } = board;
-    const { activeTiles } = this.state;
+    const { activeTiles, material } = this.state;
+    const currentMat = material || 'petg';
     const bracketSize = Math.max(tilePx * 0.16, 14);
 
     for (let r = 0; r <= rows; r++) {
@@ -273,15 +375,48 @@ class Canvas2DStudio {
         if (activeNeighborsCount === 0) continue;
 
         ctx.save();
-        // 3D-Printed Joint Bracket plate
         ctx.fillStyle = '#141a24';
-        ctx.strokeStyle = '#273549';
-        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = currentMat === 'cf_petg' ? '#ea580c' : '#273549';
+        ctx.lineWidth = 1.3;
 
-        ctx.beginPath();
-        ctx.roundRect(posX - bracketSize / 2, posY - bracketSize / 2, bracketSize, bracketSize, 4);
-        ctx.fill();
-        ctx.stroke();
+        // Bracket shape adapts to material:
+        if (currentMat === 'cf_petg') {
+          // Hexagonal carbon truss bracket
+          const hRadius = bracketSize * 0.55;
+          ctx.beginPath();
+          for (let a = 0; a < 6; a++) {
+            const angle = (a * Math.PI) / 3;
+            const hx = posX + hRadius * Math.cos(angle);
+            const hy = posY + hRadius * Math.sin(angle);
+            if (a === 0) ctx.moveTo(hx, hy);
+            else ctx.lineTo(hx, hy);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+        } else if (currentMat === 'abs') {
+          // Circular reinforced boss bracket
+          ctx.beginPath();
+          ctx.arc(posX, posY, bracketSize * 0.55, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+        } else if (currentMat === 'pla_plus') {
+          // Slim minimalist square bracket
+          const s = bracketSize * 0.75;
+          ctx.beginPath();
+          ctx.roundRect(posX - s / 2, posY - s / 2, s, s, 2);
+          ctx.fill();
+          ctx.stroke();
+
+        } else {
+          // Standard cross bracket
+          ctx.beginPath();
+          ctx.roundRect(posX - bracketSize / 2, posY - bracketSize / 2, bracketSize, bracketSize, 4);
+          ctx.fill();
+          ctx.stroke();
+        }
 
         // M4 Hex Screw Cap center
         ctx.fillStyle = '#94a3b8';
@@ -302,13 +437,49 @@ class Canvas2DStudio {
 
   renderAccessories(board) {
     const { placedAccessories, accessoryColor } = this.state;
-    if (!placedAccessories) return;
+    
+    // If board is empty, show helpful callout guide
+    if (!placedAccessories || placedAccessories.length === 0) {
+      this.renderEmptyBoardCallout(board);
+      return;
+    }
 
     placedAccessories.forEach((item, index) => {
       const isSelected = (index === this.selectedItemIndex);
       const isHovered = (index === this.hoveredItemIndex);
       this.drawAccessoryItem(board, item, isSelected, isHovered, accessoryColor);
     });
+  }
+
+  renderEmptyBoardCallout(board) {
+    const ctx = this.ctx;
+    const cx = board.x + board.width / 2;
+    const cy = board.y + board.height / 2;
+
+    ctx.save();
+    // Subtle frosted guidance pill
+    const w = Math.min(board.width * 0.85, 420);
+    const h = 80;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+    ctx.strokeStyle = 'rgba(249, 115, 22, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(cx - w / 2, cy - h / 2, w, h, 14);
+    ctx.fill();
+    ctx.stroke();
+
+    // Icon & Text
+    ctx.fillStyle = '#f97316';
+    ctx.font = "bold 13px 'Plus Jakarta Sans', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.fillText("✨ Clean Blank Pegboard Ready", cx, cy - 10);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = "11px 'Plus Jakarta Sans', sans-serif";
+    ctx.fillText("Click any tool on the left (Drills, Wrenches, Bins, Shelves) to place it here!", cx, cy + 14);
+
+    ctx.restore();
   }
 
   drawAccessoryItem(board, item, isSelected, isHovered, defaultColor) {
