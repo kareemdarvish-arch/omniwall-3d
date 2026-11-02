@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OmniWall 3D — Modular 3D-Printed Workshop Wall Configurator</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#fff7ed',
+              500: '#f97316',
+              600: '#ea580c',
+              700: '#c2410c',
+            },
+            dark: {
+              900: '#0b0f17',
+              800: '#111724',
+              700: '#1b2436',
+              600: '#26334d'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Three.js and OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body class="bg-[#0b0f17] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-orange-500 selection:text-white">
+
+  <!-- ================= TOP NAVIGATION BAR ================= -->
+  <header class="border-b border-slate-800 bg-[#111724]/90 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-6 py-2.5">
+    <div class="max-w-[1920px] mx-auto flex items-center justify-between gap-4">
+      
+      <!-- Brand & Project Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20 text-white">
+          <i data-lucide="layers" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
+              OmniWall <span class="text-orange-500">3D</span>
+            </h1>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 font-semibold uppercase">
+              Modular Studio
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 hidden sm:block">
+            Custom 3D-Printed Pegboard & Tool Organizer &bull; University Graduation Project
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Action Badges & Buttons -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Prototype Showcase Button -->
+        <button id="open-prototype-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-300 transition-colors">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <i data-lucide="camera" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span class="hidden md:inline">Real Prototype Photo</span>
+        </button>
+
+        <!-- Materials Guide Button -->
+        <button id="open-material-guide-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-300 transition-colors">
+          <i data-lucide="flask-conical" class="w-3.5 h-3.5 text-orange-400"></i>
+          <span class="hidden md:inline">Materials Spec</span>
+        </button>
+
+        <!-- Currency Selector -->
+        <div class="flex items-center bg-slate-800/80 border border-slate-700 rounded-lg px-2 py-1">
+          <label for="currency-select" class="text-[11px] text-slate-400 mr-1.5 font-mono">Currency:</label>
+          <select id="currency-select" class="bg-transparent text-xs font-bold text-orange-400 focus:outline-none cursor-pointer">
+            <option value="USD" class="bg-slate-900 text-slate-100">USD ($)</option>
+            <option value="EGP" class="bg-slate-900 text-slate-100" selected>EGP (ج.م)</option>
+            <option value="EUR" class="bg-slate-900 text-slate-100">EUR (€)</option>
+          </select>
+        </div>
+
+        <!-- Share Design Link Button -->
+        <button id="share-design-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-300 transition-colors" title="Copy shareable configuration link">
+          <i data-lucide="share-2" class="w-3.5 h-3.5 text-blue-400"></i>
+          <span class="hidden lg:inline">Share</span>
+        </button>
+
+        <!-- Open Quote Modal Button -->
+        <button id="open-quote-modal-btn" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-bold shadow-md shadow-orange-600/25 transition-all">
+          <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+          <span>Order Quote</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ================= MAIN WORKSPACE AREA ================= -->
+  <main class="flex-1 flex flex-col lg:flex-row overflow-hidden max-w-[1920px] w-full mx-auto">
+    
+    <!-- LEFT PANEL: CONFIGURATION ACCORDION & ACCESSORIES (Scrollable) -->
+    <aside class="w-full lg:w-[420px] bg-[#101622] border-r border-slate-800 flex flex-col h-auto lg:h-[calc(100vh-61px)] overflow-y-auto shrink-0 p-4 gap-4">
+      
+      <!-- STEP 1: SIZE, SHAPE & MODULAR TILES -->
+      <section class="glass-panel rounded-2xl p-4 border border-slate-800/80">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-md bg-orange-500/20 text-orange-400 text-xs font-mono font-bold flex items-center justify-center">1</span>
+            <h3 class="text-sm font-bold text-slate-100">Size & Modular Shape</h3>
+          </div>
+          <button id="open-shape-editor-btn" class="text-[11px] text-orange-400 hover:text-orange-300 font-mono flex items-center gap-1 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">
+            <i data-lucide="grid" class="w-3 h-3"></i>
+            <span>Edit Shape</span>
+          </button>
+        </div>
+
+        <!-- Presets Quick Buttons -->
+        <div class="grid grid-cols-3 gap-1.5 mb-3.5">
+          <button class="preset-btn px-2 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-[11px] font-medium text-slate-200 border border-slate-700/60 transition-colors" data-preset="reference_photo">
+            📸 Photo (4×3)
+          </button>
+          <button class="preset-btn px-2 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-[11px] font-medium text-slate-200 border border-slate-700/60 transition-colors" data-preset="compact">
+            Compact (3×2)
+          </button>
+          <button class="preset-btn px-2 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-[11px] font-medium text-slate-200 border border-slate-700/60 transition-colors" data-preset="starter">
+            Starter (2×2)
+          </button>
+          <button class="preset-btn px-2 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-[11px] font-medium text-slate-200 border border-slate-700/60 transition-colors" data-preset="promaster">
+            Master (5×3)
+          </button>
+          <button class="preset-btn px-2 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-[11px] font-medium text-slate-200 border border-slate-700/60 transition-colors" data-preset="l_shape">
+            L-Shape
+          </button>
+          <button class="preset-btn px-2 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-[11px] font-medium text-slate-200 border border-slate-700/60 transition-colors" data-preset="inverted_t">
+            Inverted T
+          </button>
+        </div>
+
+        <!-- Dimension Sliders -->
+        <div class="space-y-3">
+          <div>
+            <div class="flex justify-between text-xs text-slate-300 mb-1">
+              <span>Columns (Width)</span>
+              <span id="col-val" class="font-mono text-orange-400 font-bold">4 cols</span>
+            </div>
+            <input type="range" id="grid-cols" min="1" max="6" value="4" class="w-full h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs text-slate-300 mb-1">
+              <span>Rows (Height)</span>
+              <span id="row-val" class="font-mono text-orange-400 font-bold">3 rows</span>
+            </div>
+            <input type="range" id="grid-rows" min="1" max="4" value="3" class="w-full h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+          </div>
+        </div>
+
+        <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+          <span>Modular Tile Size:</span>
+          <span class="font-mono text-slate-200 font-semibold">20 × 20 cm per unit</span>
+        </div>
+      </section>
+
+      <!-- STEP 2: 3D PRINTING MATERIAL & ENGINEERING SPECS -->
+      <section class="glass-panel rounded-2xl p-4 border border-slate-800/80">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-md bg-orange-500/20 text-orange-400 text-xs font-mono font-bold flex items-center justify-center">2</span>
+            <h3 class="text-sm font-bold text-slate-100">Filament Material</h3>
+          </div>
+          <span class="text-[10px] text-emerald-400 font-mono font-medium">FDM/FFF Additive</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <!-- PETG -->
+          <div class="material-card border-2 border-orange-500 bg-orange-500/10 rounded-xl p-2.5 cursor-pointer transition-all" data-material="petg">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-slate-100">PETG Pro</span>
+              <span class="text-[9px] px-1.5 py-0.2 rounded bg-orange-500/20 text-orange-300 font-mono">RECOMMENDED</span>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight mb-1.5">Impact resistant, garage chemical & oil proof.</p>
+            <div class="text-[10px] font-mono text-slate-300 flex justify-between">
+              <span>Max Temp:</span>
+              <span class="text-orange-400 font-bold">75°C</span>
+            </div>
+          </div>
+
+          <!-- PLA+ -->
+          <div class="material-card border border-slate-700/80 bg-slate-800/40 rounded-xl p-2.5 cursor-pointer hover:border-slate-600 transition-all" data-material="pla_plus">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-slate-100">PLA+ Tough</span>
+              <span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-700 text-slate-300 font-mono">AESTHETIC</span>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight mb-1.5">Ultra rigid, crisp layer finish, eco bioplastic.</p>
+            <div class="text-[10px] font-mono text-slate-300 flex justify-between">
+              <span>Max Temp:</span>
+              <span class="text-slate-400 font-bold">55°C</span>
+            </div>
+          </div>
+
+          <!-- ABS / ASA -->
+          <div class="material-card border border-slate-700/80 bg-slate-800/40 rounded-xl p-2.5 cursor-pointer hover:border-slate-600 transition-all" data-material="abs">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-slate-100">ABS / ASA</span>
+              <span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-700 text-slate-300 font-mono">HEAT & UV</span>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight mb-1.5">High thermal endurance for hot sheds & sunlight.</p>
+            <div class="text-[10px] font-mono text-slate-300 flex justify-between">
+              <span>Max Temp:</span>
+              <span class="text-slate-400 font-bold">95°C</span>
+            </div>
+          </div>
+
+          <!-- Carbon Fiber PETG -->
+          <div class="material-card border border-slate-700/80 bg-slate-800/40 rounded-xl p-2.5 cursor-pointer hover:border-slate-600 transition-all" data-material="cf_petg">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-slate-100">CF-PETG</span>
+              <span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-700 text-slate-300 font-mono">INDUSTRIAL</span>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight mb-1.5">15% Carbon fiber micro-fill, maximum rigidity.</p>
+            <div class="text-[10px] font-mono text-slate-300 flex justify-between">
+              <span>Max Temp:</span>
+              <span class="text-slate-400 font-bold">85°C</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 3: COLOR PALETTE (TWO-TONE CUSTOMIZER) -->
+      <section class="glass-panel rounded-2xl p-4 border border-slate-800/80">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-md bg-orange-500/20 text-orange-400 text-xs font-mono font-bold flex items-center justify-center">3</span>
+            <h3 class="text-sm font-bold text-slate-100">Color Customization</h3>
+          </div>
+          <span class="text-[10px] text-slate-400 font-mono">Two-Tone</span>
+        </div>
+
+        <!-- Panel Base Color -->
+        <div class="mb-3">
+          <label class="text-xs text-slate-300 block mb-1.5 flex items-center justify-between">
+            <span>Pegboard Tiles Color:</span>
+            <input type="color" id="custom-panel-color" value="#2b3648" class="w-5 h-5 rounded cursor-pointer bg-transparent border-0">
+          </label>
+          <div id="panel-colors" class="flex items-center gap-2 flex-wrap"></div>
+        </div>
+
+        <!-- Tool & Mount Accent Color -->
+        <div>
+          <label class="text-xs text-slate-300 block mb-1.5 flex items-center justify-between">
+            <span>Accessories & Mounts Accent:</span>
+            <input type="color" id="custom-accent-color" value="#f97316" class="w-5 h-5 rounded cursor-pointer bg-transparent border-0">
+          </label>
+          <div id="accent-colors" class="flex items-center gap-2 flex-wrap"></div>
+        </div>
+      </section>
+
+      <!-- STEP 4: ACCESSORIES & TOOL HOLDERS CATALOG -->
+      <section class="glass-panel rounded-2xl p-4 border border-slate-800/80 flex-1 flex flex-col">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-md bg-orange-500/20 text-orange-400 text-xs font-mono font-bold flex items-center justify-center">4</span>
+            <h3 class="text-sm font-bold text-slate-100">Tools & Mounts Catalog</h3>
+          </div>
+          <span class="text-[11px] text-slate-400 font-mono">Drag or Click '+'</span>
+        </div>
+
+        <!-- Category Filter Pills -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-2 mb-2 scrollbar-none text-xs">
+          <button class="category-pill tab-active px-2.5 py-1 rounded-lg text-slate-300 whitespace-nowrap" data-category="all">All Items</button>
+          <button class="category-pill px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white whitespace-nowrap" data-category="hand">Hand Tools</button>
+          <button class="category-pill px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white whitespace-nowrap" data-category="power">Power Tools</button>
+          <button class="category-pill px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white whitespace-nowrap" data-category="storage">Storage & Bins</button>
+          <button class="category-pill px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white whitespace-nowrap" data-category="utility">Utility</button>
+        </div>
+
+        <!-- Scrollable Cards Container -->
+        <div id="accessories-list" class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+          <!-- Populated dynamically via app.js -->
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- CENTER: INTERACTIVE CANVAS WORKSPACE -->
+    <section class="flex-1 flex flex-col h-auto lg:h-[calc(100vh-61px)] relative bg-[#0d121c] overflow-hidden">
+      
+      <!-- Canvas Top Control Bar -->
+      <div class="p-3 border-b border-slate-800/80 bg-[#111724]/80 backdrop-blur-md flex items-center justify-between gap-3 z-10">
+        
+        <!-- View Mode Switcher: 2D Studio vs 3D Inspector -->
+        <div class="flex items-center bg-slate-900/90 border border-slate-700/80 rounded-xl p-1 shadow-inner">
+          <button id="view-2d-btn" class="tab-active flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 transition-all">
+            <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+            <span>2D Layout Studio</span>
+          </button>
+          <button id="view-3d-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition-all">
+            <i data-lucide="box" class="w-3.5 h-3.5"></i>
+            <span>3D Orbit Inspector</span>
+          </button>
+        </div>
+
+        <!-- Board Dimensions Badge -->
+        <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs font-mono">
+          <i data-lucide="ruler" class="w-3.5 h-3.5 text-orange-400"></i>
+          <span id="summary-dimensions" class="text-slate-200 font-semibold">80 × 60 cm (12 Tiles)</span>
+        </div>
+
+        <!-- Quick Toolbar Tools -->
+        <div class="flex items-center gap-2">
+          <button id="reset-preset-btn" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium transition-colors" title="Load layout from graduation prototype photo">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span class="hidden sm:inline">Photo Layout</span>
+          </button>
+
+          <button id="clear-board-btn" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-red-950/40 hover:text-red-400 border border-slate-700 text-xs text-slate-300 font-medium transition-colors" title="Remove all accessories">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            <span class="hidden sm:inline">Clear</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Canvas Containers -->
+      <div class="flex-1 relative overflow-hidden flex items-center justify-center p-2 sm:p-4" id="canvas-container">
+        
+        <!-- 2D Canvas Studio Container -->
+        <div id="studio-canvas-container" class="w-full h-full flex items-center justify-center relative">
+          <canvas id="studio-canvas" class="w-full h-full block rounded-xl shadow-2xl"></canvas>
+          
+          <!-- Instructions overlay for customer -->
+          <div class="absolute bottom-4 left-4 pointer-events-none bg-slate-900/80 backdrop-blur-md border border-slate-800 px-3 py-2 rounded-xl text-[11px] text-slate-400 flex items-center gap-2">
+            <i data-lucide="mouse-pointer" class="w-3.5 h-3.5 text-orange-400"></i>
+            <span>Drag tools to reposition &bull; Snaps to slots &bull; Click tool for options</span>
+          </div>
+        </div>
+
+        <!-- 3D Three.js WebGL Container (Initially hidden) -->
+        <div id="threejs-canvas-wrapper" class="w-full h-full relative hidden rounded-xl overflow-hidden">
+          <!-- 3D Controls hint overlay -->
+          <div class="absolute bottom-4 left-4 pointer-events-none bg-slate-900/80 backdrop-blur-md border border-slate-800 px-3 py-2 rounded-xl text-[11px] text-slate-400 flex items-center gap-2 z-10">
+            <i data-lucide="move-3d" class="w-3.5 h-3.5 text-orange-400"></i>
+            <span>Left Click + Drag: Rotate 360° &bull; Scroll: Zoom &bull; Right Click: Pan</span>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- RIGHT PANEL: LIVE COST & BILL OF MATERIALS (BOM) -->
+    <aside class="w-full lg:w-[340px] bg-[#101622] border-l border-slate-800 flex flex-col shrink-0 p-4 gap-4 h-auto lg:h-[calc(100vh-61px)] overflow-y-auto">
+      
+      <!-- Cost & Technical Summary Card -->
+      <div class="glass-panel-elevated rounded-2xl p-4 border border-orange-500/20 bg-gradient-to-b from-slate-900 to-[#121a28]">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs uppercase tracking-wider font-mono text-orange-400 font-bold">Estimated Cost</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono">
+            Direct 3D Print
+          </span>
+        </div>
+
+        <!-- Big Total Price Display -->
+        <div class="mb-4">
+          <div id="total-cost-display" class="text-3xl font-extrabold text-white font-mono tracking-tight text-emerald-400">
+            $98.50
+          </div>
+          <p class="text-[11px] text-slate-400 mt-0.5">Calculated based on filament mass + machine time</p>
+        </div>
+
+        <!-- Detailed Breakdown -->
+        <div class="space-y-2 border-t border-slate-800/80 pt-3 text-xs">
+          <div class="flex justify-between text-slate-300">
+            <span class="text-slate-400">Modular Panels:</span>
+            <span id="cost-panels" class="font-mono font-medium">$64.00</span>
+          </div>
+
+          <div class="flex justify-between text-slate-300">
+            <span class="text-slate-400">Tool Mounts & Bins:</span>
+            <span id="cost-accessories" class="font-mono font-medium">$34.50</span>
+          </div>
+
+          <div class="flex justify-between text-slate-300">
+            <span class="text-slate-400">Interlocking Clips & Bolts:</span>
+            <span class="font-mono text-emerald-400 font-semibold">FREE Included</span>
+          </div>
+        </div>
+
+        <!-- Order / Quote CTA Button -->
+        <button id="open-quote-modal-btn-2" onclick="document.getElementById('open-quote-modal-btn').click()" class="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-bold shadow-lg shadow-orange-600/30 flex items-center justify-center gap-2 transition-all">
+          <i data-lucide="file-check" class="w-4 h-4"></i>
+          <span>Generate Order Quote</span>
+        </button>
+
+        <button onclick="window.app.sendWhatsAppOrder()" class="mt-2 w-full py-2 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all">
+          <i data-lucide="message-circle" class="w-4 h-4"></i>
+          <span>Order via WhatsApp</span>
+        </button>
+      </div>
+
+      <!-- 3D Print Engineering Specifications Card -->
+      <div class="glass-panel rounded-2xl p-4 border border-slate-800/80 space-y-3">
+        <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wider font-mono flex items-center gap-1.5">
+          <i data-lucide="cpu" class="w-3.5 h-3.5 text-orange-400"></i>
+          <span>Print & Technical Specs</span>
+        </h4>
+
+        <div class="space-y-2 text-xs">
+          <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+            <span class="text-slate-400">Selected Filament:</span>
+            <span id="summary-material" class="font-medium text-slate-200">PETG Pro</span>
+          </div>
+
+          <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+            <span class="text-slate-400">Total Filament Weight:</span>
+            <span id="summary-weight" class="font-mono text-orange-400 font-bold">2,850 g (2.85 kg)</span>
+          </div>
+
+          <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+            <span class="text-slate-400">Total Print Run Time:</span>
+            <span id="summary-print-time" class="font-mono text-slate-200 font-semibold">~52.5 hrs</span>
+          </div>
+
+          <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+            <span class="text-slate-400">Accessories Mounted:</span>
+            <span id="summary-acc-count" class="font-mono text-slate-200 font-semibold">22 items</span>
+          </div>
+
+          <div class="flex justify-between items-center py-1">
+            <span class="text-slate-400">Mounting Hardware:</span>
+            <span class="text-slate-200 text-right">M4 Hex + Wall Anchors</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- University Project Team Info Card -->
+      <div class="glass-panel rounded-2xl p-3.5 border border-slate-800/80 text-[11px] text-slate-400">
+        <div class="flex items-center gap-2 mb-1.5 text-slate-200 font-semibold">
+          <i data-lucide="graduation-cap" class="w-4 h-4 text-orange-400"></i>
+          <span>Graduation Project 2026</span>
+        </div>
+        <p class="leading-relaxed text-slate-400">
+          Faculty of Engineering &bull; Advanced Additive Manufacturing & Rapid Product Customization.
+        </p>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- 1. OFFICIAL QUOTE / ORDER SHEET MODAL (Printable) -->
+  <div id="quote-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto hidden">
+    <div id="quote-modal-content" class="bg-white text-slate-900 rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative border border-slate-200 my-auto">
+      
+      <!-- Modal Header (Branded Invoice Style) -->
+      <div class="flex items-start justify-between border-b border-slate-200 pb-5 mb-5">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-7 h-7 rounded-lg bg-orange-600 text-white flex items-center justify-center font-bold text-sm">O</span>
+            <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">OmniWall 3D Quotation</h2>
+          </div>
+          <p class="text-xs text-slate-500">
+            Graduation Engineering Project &bull; Custom 3D-Printed Workshop System
+          </p>
+        </div>
+        <div class="text-right">
+          <span class="inline-block text-[11px] font-mono font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-300">
+            Order Ref: <span id="quote-order-id">PW-3D-94821</span>
+          </span>
+          <div class="text-xs text-slate-500 mt-1" id="quote-date">Nov 02, 2026</div>
+        </div>
+      </div>
+
+      <!-- Customer Summary Specs -->
+      <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 mb-5">
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div>
+            <span class="text-slate-500 block">System Dimensions:</span>
+            <span class="font-bold text-slate-800" id="quote-specs-text">80cm W × 60cm H &bull; Infill: 25% Gyroid</span>
+          </div>
+          <div>
+            <span class="text-slate-500 block">Total Filament Mass:</span>
+            <span class="font-bold text-slate-800 font-mono" id="quote-total-weight">2,850 g</span>
+          </div>
+          <div>
+            <span class="text-slate-500 block">Estimated Print Runtime:</span>
+            <span class="font-bold text-slate-800" id="quote-total-time">~52.5 hours</span>
+          </div>
+          <div>
+            <span class="text-slate-500 block">Hardware Fasteners:</span>
+            <span class="font-bold text-emerald-600">Included Full Anchor Kit</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Itemized Bill of Materials Table -->
+      <div class="mb-5 overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead>
+            <tr class="border-b-2 border-slate-300 text-slate-600 font-semibold uppercase text-[10px] tracking-wider">
+              <th class="py-2 px-3">Item & Engineering Specs</th>
+              <th class="py-2 px-3 text-center">Qty</th>
+              <th class="py-2 px-3 text-right">Unit Price</th>
+              <th class="py-2 px-3 text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody id="quote-bom-items">
+            <!-- Dynamic rows injected via app.js -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Total Price Footer -->
+      <div class="flex items-center justify-between border-t-2 border-slate-900 pt-4 mb-6">
+        <div>
+          <span class="text-xs text-slate-500 block">Final Estimated Cost:</span>
+          <span class="text-[11px] text-slate-400">Includes additive manufacturing, post-processing, and clips</span>
+        </div>
+        <div class="text-2xl font-extrabold text-slate-900 font-mono" id="quote-total-price">
+          $98.50
+        </div>
+      </div>
+
+      <!-- Modal Actions (Hidden in print) -->
+      <div class="flex items-center justify-between gap-3 no-print">
+        <button id="close-quote-modal-btn" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors">
+          Close
+        </button>
+        <div class="flex items-center gap-2">
+          <button id="print-quote-btn" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow transition-colors">
+            <i data-lucide="printer" class="w-4 h-4"></i>
+            <span>Print / Save PDF</span>
+          </button>
+          <button id="whatsapp-order-btn" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow transition-colors">
+            <i data-lucide="send" class="w-4 h-4"></i>
+            <span>Send Order to Team</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 2. REAL PROTOTYPE PHOTO & PROJECT SHOWCASE MODAL -->
+  <div id="prototype-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto hidden">
+    <div class="bg-[#141b29] text-slate-100 rounded-2xl max-w-4xl w-full p-6 shadow-2xl border border-slate-700 relative my-auto">
+      
+      <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="camera" class="w-5 h-5 text-emerald-400"></i>
+            <span>Real 3D-Printed Prototype & Workshop Testing</span>
+          </h3>
+          <p class="text-xs text-slate-400">
+            Graduation Project Physical Build &bull; High-strength modular interlocking tiles
+          </p>
+        </div>
+        <button id="close-prototype-btn" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Prototype Photo Display -->
+      <div class="rounded-xl overflow-hidden border border-slate-700/80 shadow-2xl mb-4 bg-black flex items-center justify-center max-h-[480px]">
+        <img src="assets/images/reference_board.jpg" alt="Graduation Project 3D Printed Pegboard System" class="w-full h-full object-contain">
+      </div>
+
+      <!-- Prototype Technical Highlights -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/60">
+          <h5 class="font-bold text-orange-400 mb-1 flex items-center gap-1.5">
+            <i data-lucide="link" class="w-3.5 h-3.5"></i>
+            <span>Modular Dovetail Brackets</span>
+          </h5>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            Corner interlocking joints distribute shear load across multiple tiles, supporting heavy power tools without wall damage.
+          </p>
+        </div>
+
+        <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/60">
+          <h5 class="font-bold text-orange-400 mb-1 flex items-center gap-1.5">
+            <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+            <span>Custom Tool Mounts</span>
+          </h5>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            Every tool (drills, angle grinders, wrenches, screwdrivers, spray cans, and hardware bins) has a custom 3D-printed snap-fit mount.
+          </p>
+        </div>
+
+        <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/60">
+          <h5 class="font-bold text-orange-400 mb-1 flex items-center gap-1.5">
+            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+            <span>Interactive Web Sync</span>
+          </h5>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            Customers design their custom layout online; our system calculates filament usage and generates the exact print queue.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 3. MATERIAL ENGINEERING GUIDE MODAL -->
+  <div id="material-guide-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto hidden">
+    <div class="bg-[#141b29] text-slate-100 rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-700 relative my-auto">
+      
+      <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="flask-conical" class="w-5 h-5 text-orange-400"></i>
+            <span>3D Printing Material Selection Guide</span>
+          </h3>
+          <p class="text-xs text-slate-400">
+            Mechanical properties and recommendations for workshop wall longevity
+          </p>
+        </div>
+        <button id="close-material-guide-btn" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Material Comparison Cards -->
+      <div class="space-y-3 text-xs">
+        <div class="bg-slate-800/40 p-4 rounded-xl border border-slate-700/70">
+          <div class="flex items-center justify-between mb-1.5">
+            <h4 class="font-bold text-slate-100 flex items-center gap-2 text-sm">
+              <span>PETG (Polyethylene Terephthalate Glycol)</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 font-mono font-bold">BEST CHOICE FOR WORKSHOPS</span>
+            </h4>
+            <span class="font-mono text-orange-400 font-semibold">Max Temp: 75°C</span>
+          </div>
+          <p class="text-slate-300 text-[11px] leading-relaxed mb-2">
+            Combines the ease of printing with high impact resistance and chemical endurance. Highly resistant to automotive grease, lubricating oils, WD-40, and solvents. Does not shatter under shock load when heavy tools are dropped into mounts.
+          </p>
+          <div class="flex gap-4 text-[11px] font-mono text-slate-400">
+            <span>Infill: 25% Gyroid</span> &bull; <span>Density: 1.27 g/cm³</span> &bull; <span>Elongation at Break: High</span>
+          </div>
+        </div>
+
+        <div class="bg-slate-800/40 p-4 rounded-xl border border-slate-700/70">
+          <div class="flex items-center justify-between mb-1.5">
+            <h4 class="font-bold text-slate-100 flex items-center gap-2 text-sm">
+              <span>PLA+ (Tough Polylactic Acid)</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-300 font-mono font-bold">ECONOMICAL & RIGID</span>
+            </h4>
+            <span class="font-mono text-slate-400 font-semibold">Max Temp: 55°C</span>
+          </div>
+          <p class="text-slate-300 text-[11px] leading-relaxed mb-2">
+            Highest stiffness and crispiest visual layer appearance. Environmentally conscious cornstarch-derived bio-polymer. Excellent for air-conditioned indoor workshops, makerspaces, electronics benches, and craft rooms.
+          </p>
+          <div class="flex gap-4 text-[11px] font-mono text-slate-400">
+            <span>Infill: 20% Grid</span> &bull; <span>Density: 1.24 g/cm³</span> &bull; <span>Tensile Strength: 50 MPa</span>
+          </div>
+        </div>
+
+        <div class="bg-slate-800/40 p-4 rounded-xl border border-slate-700/70">
+          <div class="flex items-center justify-between mb-1.5">
+            <h4 class="font-bold text-slate-100 flex items-center gap-2 text-sm">
+              <span>Carbon Fiber Reinforced PETG</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-300 font-mono font-bold">INDUSTRIAL PRO</span>
+            </h4>
+            <span class="font-mono text-slate-400 font-semibold">Max Temp: 85°C</span>
+          </div>
+          <p class="text-slate-300 text-[11px] leading-relaxed mb-2">
+            Doped with 15% chopped high-modulus carbon fiber strands. Eliminates flex under heavy leverage (such as large socket bars and drills). Produces a stunning matte textured finish that hides layer lines completely.
+          </p>
+          <div class="flex gap-4 text-[11px] font-mono text-slate-400">
+            <span>Infill: 30% Honeycomb</span> &bull; <span>Density: 1.30 g/cm³</span> &bull; <span>Flexural Modulus: Extreme</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 4. CUSTOM TILE SHAPE EDITOR MODAL -->
+  <div id="shape-editor-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto hidden">
+    <div class="bg-[#141b29] text-slate-100 rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-700 relative my-auto">
+      
+      <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="grid" class="w-5 h-5 text-orange-400"></i>
+            <span>Interactive Tile Shape Planner</span>
+          </h3>
+          <p class="text-xs text-slate-400">
+            Click any tile to toggle it ON or OFF to fit around switches, doors, or custom corners
+          </p>
+        </div>
+        <button id="close-shape-editor-btn" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Mini Grid of Tiles -->
+      <div id="shape-tile-grid" class="grid gap-2 p-4 bg-slate-900/60 rounded-xl border border-slate-800 mb-4 min-h-[220px]">
+        <!-- Injected dynamically via app.js -->
+      </div>
+
+      <div class="flex items-center justify-between text-xs">
+        <span class="text-slate-400">Orange = Active Tile &bull; Gray = Empty space</span>
+        <button onclick="document.getElementById('close-shape-editor-btn').click()" class="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold transition-colors">
+          Apply Custom Shape
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- App Scripts -->
+  <script src="assets/js/viewer3d.js"></script>
+  <script src="assets/js/canvas2d.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script>
+    // Initialize Lucide icons on load
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>
