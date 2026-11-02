@@ -292,6 +292,9 @@ class OmniWallApp {
         if (this.viewer3d && this.state.currentView === '3d') {
           this.viewer3d.updateBoard(this.state);
         }
+      },
+      onNotify: (msg) => {
+        this.showNotification(msg);
       }
     });
 
@@ -345,7 +348,8 @@ class OmniWallApp {
   }
 
   loadPrototypePreset() {
-    // Exactly recreates the uploaded graduation project board in the photo: 4 cols x 3 rows!
+    // Clean, uncrowded workshop layout: strictly 1 primary tool per plate (or 2 small bins per plate)
+    // Anti-crowding capacity enforced across all 12 plates (4 cols x 3 rows)
     this.state.cols = 4;
     this.state.rows = 3;
     this.state.panelColor = '#303947';
@@ -353,33 +357,24 @@ class OmniWallApp {
     this.state.activeTiles = {};
 
     this.state.placedAccessories = [
-      // Top row
-      { id: 'acc_1', type: 'spray_can_holder', relX: 0.12, relY: 0.15 },
-      { id: 'acc_2', type: 'wrench_rack', relX: 0.22, relY: 0.15 },
-      { id: 'acc_3', type: 'wrench_rack', relX: 0.35, relY: 0.15 },
-      { id: 'acc_4', type: 'pliers_holder', relX: 0.44, relY: 0.16 },
-      { id: 'acc_5', type: 'hammer_mount', relX: 0.53, relY: 0.16 },
-      { id: 'acc_6', type: 'screwdriver_rack', relX: 0.62, relY: 0.16 },
-      { id: 'acc_7', type: 'tape_holder', relX: 0.70, relY: 0.23 },
-      { id: 'acc_8', type: 'drill_mount', relX: 0.79, relY: 0.16 },
-      { id: 'acc_9', type: 'pen_cup', relX: 0.89, relY: 0.15 },
-      { id: 'acc_10', type: 'pen_cup', relX: 0.95, relY: 0.15 },
+      // Plate Row 0: Top utility & fast hand tools (1 tool centered per plate)
+      { id: 'acc_1', type: 'spray_can_holder', relX: 0.125, relY: 0.17 }, // Plate [0,0]
+      { id: 'acc_2', type: 'screwdriver_rack', relX: 0.375, relY: 0.17 }, // Plate [0,1]
+      { id: 'acc_3', type: 'hammer_mount', relX: 0.625, relY: 0.17 },     // Plate [0,2]
+      { id: 'acc_4', type: 'pen_cup', relX: 0.875, relY: 0.17 },          // Plate [0,3]
 
-      // Middle row
-      { id: 'acc_11', type: 'wrench_rack', relX: 0.16, relY: 0.50 },
-      { id: 'acc_12', type: 'screwdriver_rack', relX: 0.35, relY: 0.42 },
-      { id: 'acc_13', type: 't_handle_rack', relX: 0.55, relY: 0.46 },
-      { id: 'acc_14', type: 'large_shelf', relX: 0.76, relY: 0.48 },
-      { id: 'acc_15', type: 'storage_bin', relX: 0.89, relY: 0.38 },
-      { id: 'acc_16', type: 'storage_bin', relX: 0.89, relY: 0.52 },
+      // Plate Row 1: Heavy power tools & organized shelves (1 tool centered per plate)
+      { id: 'acc_5', type: 'wrench_rack', relX: 0.125, relY: 0.50 },      // Plate [1,0]
+      { id: 'acc_6', type: 'drill_mount', relX: 0.375, relY: 0.50 },      // Plate [1,1]
+      { id: 'acc_7', type: 'large_shelf', relX: 0.625, relY: 0.50 },      // Plate [1,2]
+      { id: 'acc_8', type: 'storage_bin', relX: 0.875, relY: 0.42 },      // Plate [1,3] upper bin (0.5 cap)
+      { id: 'acc_9', type: 'storage_bin', relX: 0.875, relY: 0.58 },      // Plate [1,3] lower bin (0.5 cap)
 
-      // Bottom row
-      { id: 'acc_17', type: 'bottom_drawer', relX: 0.18, relY: 0.84 },
-      { id: 'acc_18', type: 'bottom_drawer', relX: 0.42, relY: 0.84 },
-      { id: 'acc_19', type: 't_handle_rack', relX: 0.56, relY: 0.72 },
-      { id: 'acc_20', type: 'large_shelf', relX: 0.76, relY: 0.72 },
-      { id: 'acc_21', type: 'storage_bin', relX: 0.89, relY: 0.67 },
-      { id: 'acc_22', type: 'storage_bin', relX: 0.89, relY: 0.81 }
+      // Plate Row 2: Bottom tier heavy storage & precision tools (1 tool centered per plate)
+      { id: 'acc_10', type: 'pliers_holder', relX: 0.125, relY: 0.83 },    // Plate [2,0]
+      { id: 'acc_11', type: 'bottom_drawer', relX: 0.375, relY: 0.83 },    // Plate [2,1]
+      { id: 'acc_12', type: 't_handle_rack', relX: 0.625, relY: 0.83 },    // Plate [2,2]
+      { id: 'acc_13', type: 'tape_holder', relX: 0.875, relY: 0.83 }       // Plate [2,3]
     ];
   }
 
@@ -1038,101 +1033,93 @@ class OmniWallApp {
 
   // ================= SMART AUTO-ORGANIZE ENGINE =================
   autoOrganizeTools() {
-    const tools = this.state.placedAccessories || [];
+    const cols = this.state.cols || 4;
+    const rows = this.state.rows || 3;
+    const activeTiles = this.state.activeTiles || {};
 
-    if (tools.length === 0) {
-      // Board was empty: auto-populate a complete, ergonomically-organized workshop layout!
-      if (this.state.cols >= 4) {
-        this.state.placedAccessories = [
-          // Top row: Hand & Utility Tools (relY: 0.16)
-          { id: 'acc_org_1', type: 'spray_can_holder', relX: 0.12, relY: 0.16 },
-          { id: 'acc_org_2', type: 'pliers_holder', relX: 0.24, relY: 0.16 },
-          { id: 'acc_org_3', type: 'hammer_mount', relX: 0.36, relY: 0.16 },
-          { id: 'acc_org_4', type: 'screwdriver_rack', relX: 0.48, relY: 0.16 },
-          { id: 'acc_org_5', type: 'tape_holder', relX: 0.60, relY: 0.20 },
-          { id: 'acc_org_6', type: 'pen_cup', relX: 0.72, relY: 0.16 },
-
-          // Middle row: Heavy & Power Tools (relY: 0.48)
-          { id: 'acc_org_7', type: 'wrench_rack', relX: 0.18, relY: 0.48 },
-          { id: 'acc_org_8', type: 'screwdriver_rack', relX: 0.36, relY: 0.44 },
-          { id: 'acc_org_9', type: 'drill_mount', relX: 0.54, relY: 0.46 },
-          { id: 'acc_org_10', type: 'large_shelf', relX: 0.72, relY: 0.50 },
-
-          // Right column: Stacked Hardware Bins (relX: 0.88)
-          { id: 'acc_org_11', type: 'storage_bin', relX: 0.88, relY: 0.28 },
-          { id: 'acc_org_12', type: 'storage_bin', relX: 0.88, relY: 0.45 },
-          { id: 'acc_org_13', type: 'storage_bin', relX: 0.88, relY: 0.62 },
-          { id: 'acc_org_14', type: 'storage_bin', relX: 0.88, relY: 0.79 },
-
-          // Bottom row: High Capacity Storage Trays (relY: 0.82)
-          { id: 'acc_org_15', type: 'bottom_drawer', relX: 0.22, relY: 0.82 },
-          { id: 'acc_org_16', type: 'bottom_drawer', relX: 0.48, relY: 0.82 },
-          { id: 'acc_org_17', type: 'large_shelf', relX: 0.70, relY: 0.76 }
-        ];
-      } else {
-        // Compact grid (2 or 3 cols)
-        this.state.placedAccessories = [
-          { id: 'acc_c_1', type: 'spray_can_holder', relX: 0.20, relY: 0.18 },
-          { id: 'acc_c_2', type: 'screwdriver_rack', relX: 0.50, relY: 0.18 },
-          { id: 'acc_c_3', type: 'pen_cup', relX: 0.80, relY: 0.18 },
-          { id: 'acc_c_4', type: 'drill_mount', relX: 0.28, relY: 0.52 },
-          { id: 'acc_c_5', type: 'wrench_rack', relX: 0.62, relY: 0.52 },
-          { id: 'acc_c_6', type: 'storage_bin', relX: 0.88, relY: 0.48 },
-          { id: 'acc_c_7', type: 'storage_bin', relX: 0.88, relY: 0.74 },
-          { id: 'acc_c_8', type: 'large_shelf', relX: 0.38, relY: 0.82 }
-        ];
-      }
-    } else {
-      // Existing tools: sort and position them neatly into ergonomic workshop zones
-      const topTools = [];
-      const midTools = [];
-      const bins = [];
-      const drawers = [];
-
-      tools.forEach(tool => {
-        if (tool.type === 'storage_bin') {
-          bins.push(tool);
-        } else if (tool.type === 'bottom_drawer') {
-          drawers.push(tool);
-        } else if (['drill_mount', 'wrench_rack', 'large_shelf', 't_handle_rack'].includes(tool.type)) {
-          midTools.push(tool);
-        } else {
-          topTools.push(tool);
+    // Collect all active modular plates
+    const activePlates = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (activeTiles[`${r}_${c}`] !== false) {
+          activePlates.push({ r, c });
         }
-      });
-
-      // Distribute top tools evenly across top tier
-      const topCount = topTools.length;
-      topTools.forEach((t, i) => {
-        const step = 0.72 / Math.max(topCount, 1);
-        t.relX = Math.round((0.12 + (i + 0.5) * step) * 100) / 100;
-        t.relY = 0.16;
-      });
-
-      // Distribute middle heavy tools across middle tier
-      const midCount = midTools.length;
-      midTools.forEach((t, i) => {
-        const step = 0.68 / Math.max(midCount, 1);
-        t.relX = Math.round((0.14 + (i + 0.5) * step) * 100) / 100;
-        t.relY = 0.50;
-      });
-
-      // Stack bins vertically on the right side
-      bins.forEach((t, i) => {
-        t.relX = 0.88;
-        t.relY = Math.min(0.85, Math.round((0.26 + i * 0.16) * 100) / 100);
-      });
-
-      // Bottom drawers spaced along lower tier
-      const drawerCount = drawers.length;
-      drawers.forEach((t, i) => {
-        const step = 0.65 / Math.max(drawerCount, 1);
-        t.relX = Math.round((0.20 + (i + 0.5) * step) * 100) / 100;
-        t.relY = 0.84;
-      });
-
-      this.state.placedAccessories = [...topTools, ...midTools, ...bins, ...drawers];
+      }
     }
+
+    if (activePlates.length === 0) return;
+
+    let existingTools = [...(this.state.placedAccessories || [])];
+
+    if (existingTools.length === 0) {
+      if (cols === 4 && rows === 3) {
+        this.loadPrototypePreset();
+        this.syncBoard();
+        this.showNotification('✨ Plate Capacity Enforced: 1 tool per plate with anti-crowding spacing!');
+        return;
+      } else {
+        // Curated set for other grid dimensions
+        const samplePool = [
+          'drill_mount', 'wrench_rack', 'screwdriver_rack', 'large_shelf',
+          'spray_can_holder', 'hammer_mount', 'pliers_holder', 'storage_bin',
+          'bottom_drawer', 't_handle_rack', 'pen_cup', 'tape_holder'
+        ];
+        existingTools = activePlates.map((plate, idx) => ({
+          id: 'acc_org_' + (idx + 1),
+          type: samplePool[idx % samplePool.length]
+        }));
+      }
+    }
+
+    // Sort active plates in ergonomic order: top-to-bottom, left-to-right
+    activePlates.sort((a, b) => (a.r === b.r ? a.c - b.c : a.r - b.r));
+
+    // Sort tools into ergonomic tiers
+    const priorityOrder = {
+      spray_can_holder: 1,
+      screwdriver_rack: 2,
+      hammer_mount: 3,
+      pen_cup: 4,
+      tape_holder: 5,
+      wrench_rack: 6,
+      drill_mount: 7,
+      large_shelf: 8,
+      t_handle_rack: 9,
+      pliers_holder: 10,
+      bottom_drawer: 11,
+      storage_bin: 12
+    };
+
+    existingTools.sort((a, b) => (priorityOrder[a.type] || 99) - (priorityOrder[b.type] || 99));
+
+    // Map tools to plates: strictly 1 primary tool per plate (or up to 2 small bins on a plate)
+    const organized = [];
+    let toolIdx = 0;
+
+    for (let p = 0; p < activePlates.length && toolIdx < existingTools.length; p++) {
+      const plate = activePlates[p];
+      const tool = existingTools[toolIdx++];
+      const isSmall = ['storage_bin', 'pen_cup', 'tape_holder'].includes(tool.type);
+
+      // Check if next tool is also small, they can share this plate stacked without crowding
+      if (isSmall && toolIdx < existingTools.length && ['storage_bin', 'pen_cup', 'tape_holder'].includes(existingTools[toolIdx].type)) {
+        const tool2 = existingTools[toolIdx++];
+        tool.relX = Math.round(((plate.c + 0.5) / cols) * 1000) / 1000;
+        tool.relY = Math.round(((plate.r + 0.35) / rows) * 1000) / 1000;
+        tool2.relX = Math.round(((plate.c + 0.5) / cols) * 1000) / 1000;
+        tool2.relY = Math.round(((plate.r + 0.65) / rows) * 1000) / 1000;
+        organized.push(tool, tool2);
+      } else {
+        tool.relX = Math.round(((plate.c + 0.5) / cols) * 1000) / 1000;
+        tool.relY = Math.round(((plate.r + 0.5) / rows) * 1000) / 1000;
+        organized.push(tool);
+      }
+    }
+
+    this.state.placedAccessories = organized;
+    this.syncBoard();
+    this.showNotification('✨ Plate Capacity Enforced: 1 tool per plate with anti-crowding spacing!');
+  }
 
     this.syncBoard();
     this.showNotification('✨ Smart Auto-Organize: Tools aligned to ergonomic workshop zones!');

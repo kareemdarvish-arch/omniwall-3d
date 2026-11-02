@@ -342,7 +342,14 @@
 
         <!-- Right: Board Tools Toggle Controls (Blank vs Example vs Auto-Organize) -->
         <div class="flex items-center gap-1.5">
-          <button id="auto-organize-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-xs text-emerald-300 font-bold transition-all shadow-sm" title="Smart Auto-Organize tools into ergonomic workshop zones">
+          <!-- Plate Capacity Status Badge -->
+          <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-[11px] font-mono text-slate-300" title="Plate Capacity: Max 1 tool per 20x20cm plate to prevent crowding">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Plate Cap:</span>
+            <span class="font-bold text-emerald-400">1 Tool / Plate</span>
+          </div>
+
+          <button id="auto-organize-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-xs text-emerald-300 font-bold transition-all shadow-sm" title="Smart Auto-Organize tools into ergonomic workshop zones (1 tool per plate)">
             <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-400"></i>
             <span>Auto-Organize</span>
           </button>
@@ -352,7 +359,7 @@
             <span>Blank Board</span>
           </button>
 
-          <button id="load-sample-tools-btn" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium transition-colors" title="Load example tools from photo">
+          <button id="load-sample-tools-btn" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium transition-colors" title="Load clean, spacious example layout (1 tool per plate)">
             <i data-lucide="camera" class="w-3.5 h-3.5 text-emerald-400"></i>
             <span class="hidden sm:inline">Load Example</span>
           </button>

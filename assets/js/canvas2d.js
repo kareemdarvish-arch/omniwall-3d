@@ -29,6 +29,9 @@ class Canvas2DStudio {
 
     this.state = null;
     this.onStateChange = options.onStateChange || (() => {});
+    this.onNotify = options.onNotify || ((msg) => {
+      if (window.app && window.app.showNotification) window.app.showNotification(msg);
+    });
 
     // Interactive state
     this.scale = 1;
@@ -37,6 +40,7 @@ class Canvas2DStudio {
     this.draggedItem = null;
     this.selectedItemIndex = -1;
     this.hoveredItemIndex = -1;
+    this.hoveredPlate = null;
     this.isDragging = false;
     this.dragStart = { x: 0, y: 0 };
     this.mousePos = { x: 0, y: 0 };
@@ -161,6 +165,9 @@ class Canvas2DStudio {
     // 2. Draw modular tiles with material-specific physical shape & textures
     this.renderTiles(board);
 
+    // 2.5 Draw live plate capacity highlight when dragging
+    this.renderPlateHoverFeedback(board);
+
     // 3. Draw corner connecting clips & screws adapted to material
     this.renderBracketsAndMounts(board);
 
@@ -273,6 +280,9 @@ class Canvas2DStudio {
 
         // Material Engineering Stamp on bottom of tile
         this.renderTileStamp(tileX + pad, tileY + pad, size, currentMat);
+
+        // Plate Capacity Badge (Anti-Crowding indicator)
+        this.renderPlateCapacityBadge(tileX + pad, tileY + pad, size, r, c);
 
         ctx.restore();
       }
@@ -944,22 +954,19 @@ class Canvas2DStudio {
       const rawRelX = (pos.x - board.x) / board.width;
       const rawRelY = (pos.y - board.y) / board.height;
 
-      // Snap to grid slots (e.g. 24 slot columns x 15 slot rows)
-      const snapCols = board.cols * 6;
-      const snapRows = board.rows * 5;
-      const snappedX = Math.round(rawRelX * snapCols) / snapCols;
-      const snappedY = Math.round(rawRelY * snapRows) / snapRows;
-
-      // Clamp within board bounds (with 5% margin)
-      const clampedX = Math.max(0.04, Math.min(0.96, snappedX));
-      const clampedY = Math.max(0.06, Math.min(0.94, snappedY));
+      const clampedX = Math.max(0.04, Math.min(0.96, rawRelX));
+      const clampedY = Math.max(0.06, Math.min(0.94, rawRelY));
 
       this.state.placedAccessories[this.selectedItemIndex].relX = clampedX;
       this.state.placedAccessories[this.selectedItemIndex].relY = clampedY;
 
+      // Track hovered plate for visual drop feedback
+      this.hoveredPlate = this.getTilePlateAt(clampedX, clampedY);
+
       this.render();
       this.onStateChange(this.state);
     } else {
+      this.hoveredPlate = null;
       // Hover detection
       let hovered = -1;
       for (let i = this.state.placedAccessories.length - 1; i >= 0; i--) {
@@ -981,29 +988,88 @@ class Canvas2DStudio {
   }
 
   handlePointerUp() {
+    if (this.isDragging && this.selectedItemIndex >= 0) {
+      const item = this.state.placedAccessories[this.selectedItemIndex];
+      const targetPlate = this.getTilePlateAt(item.relX, item.relY);
+      const occupancy = this.getPlateOccupancy(targetPlate.r, targetPlate.c, this.selectedItemIndex);
+      const itemCap = ['storage_bin', 'pen_cup', 'tape_holder'].includes(item.type) ? 0.5 : 1.0;
+
+      if (occupancy.totalCap + itemCap > 1.05) {
+        // Target plate is full (crowded). Auto-snap to nearest open plate!
+        const openPlate = this.findClosestAvailablePlate(targetPlate.r, targetPlate.c, item.type, this.selectedItemIndex);
+        if (openPlate) {
+          item.relX = Math.round(((openPlate.c + 0.5) / this.state.cols) * 1000) / 1000;
+          item.relY = Math.round(((openPlate.r + 0.5) / this.state.rows) * 1000) / 1000;
+          this.notify(`Plate [${targetPlate.r + 1}, ${targetPlate.c + 1}] is full (max 1 tool). Snapped to Plate [${openPlate.r + 1}, ${openPlate.c + 1}] to prevent crowding.`);
+        } else {
+          this.notify(`⚠️ All plates are at maximum capacity (1 tool/plate). Plates cannot be crowded.`);
+        }
+      } else {
+        // Plate has room! Center tool inside plate cleanly
+        if (occupancy.items.length === 1 && itemCap === 0.5) {
+          item.relX = Math.round(((targetPlate.c + 0.5) / this.state.cols) * 1000) / 1000;
+          item.relY = Math.round(((targetPlate.r + 0.65) / this.state.rows) * 1000) / 1000;
+          occupancy.items[0].relY = Math.round(((targetPlate.r + 0.35) / this.state.rows) * 1000) / 1000;
+        } else {
+          item.relX = Math.round(((targetPlate.c + 0.5) / this.state.cols) * 1000) / 1000;
+          item.relY = Math.round(((targetPlate.r + 0.5) / this.state.rows) * 1000) / 1000;
+        }
+      }
+
+      this.isDragging = false;
+      this.hoveredPlate = null;
+      this.canvas.style.cursor = 'default';
+      this.render();
+      this.onStateChange(this.state);
+      return;
+    }
+
     if (this.isDragging) {
       this.isDragging = false;
+      this.hoveredPlate = null;
       this.canvas.style.cursor = 'default';
-      this.onStateChange(this.state);
     }
   }
 
   addAccessoryAtScreenPos(type, clientX, clientY) {
     const board = this.getBoardLayout();
-    let relX = (clientX - board.x) / board.width;
-    let relY = (clientY - board.y) / board.height;
+    let rawRelX = (clientX - board.x) / board.width;
+    let rawRelY = (clientY - board.y) / board.height;
 
-    // Default to center if dropped outside
-    if (relX < 0 || relX > 1 || relY < 0 || relY > 1) {
-      relX = 0.5;
-      relY = 0.5;
+    if (rawRelX < 0 || rawRelX > 1 || rawRelY < 0 || rawRelY > 1) {
+      rawRelX = 0.5;
+      rawRelY = 0.5;
+    }
+
+    const targetPlate = this.getTilePlateAt(rawRelX, rawRelY);
+    const itemCap = ['storage_bin', 'pen_cup', 'tape_holder'].includes(type) ? 0.5 : 1.0;
+    const occupancy = this.getPlateOccupancy(targetPlate.r, targetPlate.c);
+
+    let chosenPlate = targetPlate;
+    if (occupancy.totalCap + itemCap > 1.05) {
+      const openPlate = this.findClosestAvailablePlate(targetPlate.r, targetPlate.c, type);
+      if (!openPlate) {
+        this.notify(`⚠️ All plates are at maximum capacity (1 tool/plate)! Expand grid to add more.`);
+        return;
+      }
+      chosenPlate = openPlate;
+      this.notify(`Plate [${targetPlate.r + 1}, ${targetPlate.c + 1}] is full (max 1 tool). Placed on Plate [${chosenPlate.r + 1}, ${chosenPlate.c + 1}] to prevent crowding.`);
+    }
+
+    let itemRelX = (chosenPlate.c + 0.5) / this.state.cols;
+    let itemRelY = (chosenPlate.r + 0.5) / this.state.rows;
+
+    const chosenOcc = this.getPlateOccupancy(chosenPlate.r, chosenPlate.c);
+    if (chosenOcc.items.length === 1 && itemCap === 0.5) {
+      itemRelY = (chosenPlate.r + 0.65) / this.state.rows;
+      chosenOcc.items[0].relY = (chosenPlate.r + 0.35) / this.state.rows;
     }
 
     const newItem = {
       id: 'acc_' + Date.now(),
       type: type,
-      relX: Math.max(0.05, Math.min(0.95, relX)),
-      relY: Math.max(0.08, Math.min(0.92, relY))
+      relX: Math.round(itemRelX * 1000) / 1000,
+      relY: Math.round(itemRelY * 1000) / 1000
     };
 
     this.state.placedAccessories.push(newItem);
@@ -1013,18 +1079,168 @@ class Canvas2DStudio {
   }
 
   addAccessory(type) {
-    // Add to center or next available open slot
-    const offset = (this.state.placedAccessories.length * 0.08) % 0.5;
+    const itemCap = ['storage_bin', 'pen_cup', 'tape_holder'].includes(type) ? 0.5 : 1.0;
+    const openPlate = this.findClosestAvailablePlate(0, 0, type);
+
+    if (!openPlate) {
+      this.notify(`⚠️ All plates are at maximum capacity (1 tool/plate)! Add more tiles to expand.`);
+      return;
+    }
+
+    let itemRelX = (openPlate.c + 0.5) / this.state.cols;
+    let itemRelY = (openPlate.r + 0.5) / this.state.rows;
+
+    const occupancy = this.getPlateOccupancy(openPlate.r, openPlate.c);
+    if (occupancy.items.length === 1 && itemCap === 0.5) {
+      itemRelY = (openPlate.r + 0.65) / this.state.rows;
+      occupancy.items[0].relY = (openPlate.r + 0.35) / this.state.rows;
+    }
+
     const newItem = {
       id: 'acc_' + Date.now(),
       type: type,
-      relX: 0.25 + offset,
-      relY: 0.25 + offset
+      relX: Math.round(itemRelX * 1000) / 1000,
+      relY: Math.round(itemRelY * 1000) / 1000
     };
+
     this.state.placedAccessories.push(newItem);
     this.selectedItemIndex = this.state.placedAccessories.length - 1;
     this.render();
     this.onStateChange(this.state);
+  }
+
+  // ================= PLATE CAPACITY & ANTI-CROWD HELPERS =================
+  notify(msg) {
+    if (this.onNotify) {
+      this.onNotify(msg);
+    }
+  }
+
+  getTilePlateAt(relX, relY) {
+    const cols = (this.state && this.state.cols) || 4;
+    const rows = (this.state && this.state.rows) || 3;
+    const c = Math.min(cols - 1, Math.max(0, Math.floor(relX * cols)));
+    const r = Math.min(rows - 1, Math.max(0, Math.floor(relY * rows)));
+    return { r, c };
+  }
+
+  getPlateOccupancy(r, c, excludeIndex = -1) {
+    const cols = (this.state && this.state.cols) || 4;
+    const rows = (this.state && this.state.rows) || 3;
+    let totalCap = 0;
+    const items = [];
+
+    (this.state.placedAccessories || []).forEach((item, idx) => {
+      if (idx === excludeIndex) return;
+      const plate = this.getTilePlateAt(item.relX, item.relY);
+      if (plate.r === r && plate.c === c) {
+        const isSmall = ['storage_bin', 'pen_cup', 'tape_holder'].includes(item.type);
+        totalCap += isSmall ? 0.5 : 1.0;
+        items.push(item);
+      }
+    });
+
+    return { totalCap, items, isFull: totalCap >= 1.0 };
+  }
+
+  findClosestAvailablePlate(startR, startC, itemType, excludeIndex = -1) {
+    const cols = (this.state && this.state.cols) || 4;
+    const rows = (this.state && this.state.rows) || 3;
+    const itemCap = ['storage_bin', 'pen_cup', 'tape_holder'].includes(itemType) ? 0.5 : 1.0;
+
+    let bestPlate = null;
+    let minDistance = Infinity;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (this.state.activeTiles && this.state.activeTiles[`${r}_${c}`] === false) continue;
+        const occ = this.getPlateOccupancy(r, c, excludeIndex);
+        if (occ.totalCap + itemCap <= 1.05) {
+          const dist = Math.hypot(r - startR, c - startC);
+          if (dist < minDistance) {
+            minDistance = dist;
+            bestPlate = { r, c };
+          }
+        }
+      }
+    }
+
+    return bestPlate;
+  }
+
+  renderPlateCapacityBadge(tileX, tileY, size, r, c) {
+    const ctx = this.ctx;
+    const occ = this.getPlateOccupancy(r, c);
+
+    ctx.save();
+    const fontSize = Math.max(Math.round(size * 0.052), 8);
+    ctx.font = `600 ${fontSize}px 'JetBrains Mono', monospace`;
+    ctx.textAlign = 'left';
+
+    let text = `[0/1 CAP]`;
+    let fill = 'rgba(148, 163, 184, 0.35)'; // Slate 400
+    if (occ.totalCap >= 1.0) {
+      text = `[1/1 FULL]`;
+      fill = 'rgba(52, 211, 153, 0.85)'; // Emerald 400
+    } else if (occ.totalCap > 0) {
+      text = `[0.5/1]`;
+      fill = 'rgba(251, 146, 60, 0.85)'; // Orange 400
+    }
+
+    ctx.fillStyle = fill;
+    ctx.fillText(text, tileX + 8, tileY + fontSize + 5);
+    ctx.restore();
+  }
+
+  renderPlateHoverFeedback(board) {
+    if (!this.isDragging || !this.hoveredPlate) return;
+    const { r, c } = this.hoveredPlate;
+    const { cols, rows, tilePx, x: startX, y: startY } = board;
+    if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+    if (this.state.activeTiles && this.state.activeTiles[`${r}_${c}`] === false) return;
+
+    const tileX = startX + c * tilePx;
+    const tileY = startY + r * tilePx;
+    const pad = 3;
+    const size = tilePx - pad * 2;
+
+    const occ = this.getPlateOccupancy(r, c, this.selectedItemIndex);
+    const ctx = this.ctx;
+    ctx.save();
+
+    if (occ.totalCap >= 1.0) {
+      // Plate Full warning
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.16)';
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.roundRect(tileX + pad, tileY + pad, size, size, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#f87171';
+      ctx.font = "bold 11px 'Plus Jakarta Sans', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.fillText("⚠️ Plate Full (Max 1 Tool)", tileX + pad + size / 2, tileY + pad + size / 2);
+    } else {
+      // Plate Available
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.16)';
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.roundRect(tileX + pad, tileY + pad, size, size, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#34d399';
+      ctx.font = "bold 11px 'Plus Jakarta Sans', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.fillText("✨ Plate Available (100% Fit)", tileX + pad + size / 2, tileY + pad + size / 2);
+    }
+
+    ctx.restore();
   }
 
   removeAccessory(index) {
