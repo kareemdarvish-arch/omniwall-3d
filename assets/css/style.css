@@ -160,3 +160,48 @@ input[type=range] {
     padding: 0 !important;
   }
 }
+
+/* ================= INTERACTIVE GUIDED TOUR STYLES ================= */
+.tour-spotlight-ring {
+  position: fixed;
+  border-radius: 9999px;
+  border: 3.5px solid #f97316;
+  box-shadow: 0 0 0 9999px rgba(10, 15, 24, 0.78), 0 0 35px rgba(249, 115, 22, 0.65);
+  pointer-events: none;
+  z-index: 9995;
+  transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tour-ping-ring {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.12); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.tour-pulse-active {
+  animation: tour-ping-ring 1.8s infinite ease-in-out;
+}
+
+.tour-pointer-arrow {
+  position: fixed;
+  z-index: 9996;
+  pointer-events: none;
+  transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes float-arrow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+.arrow-floating {
+  animation: float-arrow 1.2s infinite ease-in-out;
+}
+
+#tour-card {
+  position: fixed;
+  z-index: 9998;
+  pointer-events: auto;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.8), 0 0 30px rgba(249, 115, 22, 0.2);
+}

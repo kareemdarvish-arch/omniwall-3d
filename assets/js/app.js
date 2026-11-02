@@ -264,6 +264,13 @@ class OmniWallApp {
     this.canvas2d = null;
     this.viewer3d = null;
 
+    // Interactive Tour State
+    this.tourActive = false;
+    this.tourAutoPlay = false;
+    this.currentTourStepIndex = 0;
+    this.tourTimer = null;
+    this._toastTimer = null;
+
     this.init();
   }
 
@@ -592,7 +599,35 @@ class OmniWallApp {
       this.syncBoard();
     });
 
-    // 10. Modals
+    // Auto-organize button
+    document.getElementById('auto-organize-btn')?.addEventListener('click', () => {
+      this.autoOrganizeTools();
+    });
+
+    // 10. Interactive Guided Tour Triggers & Controls
+    document.getElementById('start-tour-btn')?.addEventListener('click', () => {
+      this.startInteractiveTour();
+    });
+    document.getElementById('tour-next-btn')?.addEventListener('click', () => {
+      this.nextTourStep();
+    });
+    document.getElementById('tour-prev-btn')?.addEventListener('click', () => {
+      this.prevTourStep();
+    });
+    document.getElementById('tour-skip-btn')?.addEventListener('click', () => {
+      this.stopTour();
+    });
+    document.getElementById('tour-auto-btn')?.addEventListener('click', () => {
+      this.toggleTourAutoPlay();
+    });
+
+    window.addEventListener('resize', () => {
+      if (this.tourActive) {
+        this.positionTourSpotlight();
+      }
+    });
+
+    // 11. Modals
     this.setupModals();
   }
 
@@ -1002,6 +1037,478 @@ class OmniWallApp {
         console.warn('Could not parse hash config', err);
       }
     }
+  }
+
+  // ================= SMART AUTO-ORGANIZE ENGINE =================
+  autoOrganizeTools() {
+    const tools = this.state.placedAccessories || [];
+
+    if (tools.length === 0) {
+      // Board was empty: auto-populate a complete, ergonomically-organized workshop layout!
+      if (this.state.cols >= 4) {
+        this.state.placedAccessories = [
+          // Top row: Hand & Utility Tools (relY: 0.16)
+          { id: 'acc_org_1', type: 'spray_can_holder', relX: 0.12, relY: 0.16 },
+          { id: 'acc_org_2', type: 'pliers_holder', relX: 0.24, relY: 0.16 },
+          { id: 'acc_org_3', type: 'hammer_mount', relX: 0.36, relY: 0.16 },
+          { id: 'acc_org_4', type: 'screwdriver_rack', relX: 0.48, relY: 0.16 },
+          { id: 'acc_org_5', type: 'tape_holder', relX: 0.60, relY: 0.20 },
+          { id: 'acc_org_6', type: 'pen_cup', relX: 0.72, relY: 0.16 },
+
+          // Middle row: Heavy & Power Tools (relY: 0.48)
+          { id: 'acc_org_7', type: 'wrench_rack', relX: 0.18, relY: 0.48 },
+          { id: 'acc_org_8', type: 'screwdriver_rack', relX: 0.36, relY: 0.44 },
+          { id: 'acc_org_9', type: 'drill_mount', relX: 0.54, relY: 0.46 },
+          { id: 'acc_org_10', type: 'large_shelf', relX: 0.72, relY: 0.50 },
+
+          // Right column: Stacked Hardware Bins (relX: 0.88)
+          { id: 'acc_org_11', type: 'storage_bin', relX: 0.88, relY: 0.28 },
+          { id: 'acc_org_12', type: 'storage_bin', relX: 0.88, relY: 0.45 },
+          { id: 'acc_org_13', type: 'storage_bin', relX: 0.88, relY: 0.62 },
+          { id: 'acc_org_14', type: 'storage_bin', relX: 0.88, relY: 0.79 },
+
+          // Bottom row: High Capacity Storage Trays (relY: 0.82)
+          { id: 'acc_org_15', type: 'bottom_drawer', relX: 0.22, relY: 0.82 },
+          { id: 'acc_org_16', type: 'bottom_drawer', relX: 0.48, relY: 0.82 },
+          { id: 'acc_org_17', type: 'large_shelf', relX: 0.70, relY: 0.76 }
+        ];
+      } else {
+        // Compact grid (2 or 3 cols)
+        this.state.placedAccessories = [
+          { id: 'acc_c_1', type: 'spray_can_holder', relX: 0.20, relY: 0.18 },
+          { id: 'acc_c_2', type: 'screwdriver_rack', relX: 0.50, relY: 0.18 },
+          { id: 'acc_c_3', type: 'pen_cup', relX: 0.80, relY: 0.18 },
+          { id: 'acc_c_4', type: 'drill_mount', relX: 0.28, relY: 0.52 },
+          { id: 'acc_c_5', type: 'wrench_rack', relX: 0.62, relY: 0.52 },
+          { id: 'acc_c_6', type: 'storage_bin', relX: 0.88, relY: 0.48 },
+          { id: 'acc_c_7', type: 'storage_bin', relX: 0.88, relY: 0.74 },
+          { id: 'acc_c_8', type: 'large_shelf', relX: 0.38, relY: 0.82 }
+        ];
+      }
+    } else {
+      // Existing tools: sort and position them neatly into ergonomic workshop zones
+      const topTools = [];
+      const midTools = [];
+      const bins = [];
+      const drawers = [];
+
+      tools.forEach(tool => {
+        if (tool.type === 'storage_bin') {
+          bins.push(tool);
+        } else if (tool.type === 'bottom_drawer') {
+          drawers.push(tool);
+        } else if (['drill_mount', 'wrench_rack', 'large_shelf', 't_handle_rack'].includes(tool.type)) {
+          midTools.push(tool);
+        } else {
+          topTools.push(tool);
+        }
+      });
+
+      // Distribute top tools evenly across top tier
+      const topCount = topTools.length;
+      topTools.forEach((t, i) => {
+        const step = 0.72 / Math.max(topCount, 1);
+        t.relX = Math.round((0.12 + (i + 0.5) * step) * 100) / 100;
+        t.relY = 0.16;
+      });
+
+      // Distribute middle heavy tools across middle tier
+      const midCount = midTools.length;
+      midTools.forEach((t, i) => {
+        const step = 0.68 / Math.max(midCount, 1);
+        t.relX = Math.round((0.14 + (i + 0.5) * step) * 100) / 100;
+        t.relY = 0.50;
+      });
+
+      // Stack bins vertically on the right side
+      bins.forEach((t, i) => {
+        t.relX = 0.88;
+        t.relY = Math.min(0.85, Math.round((0.26 + i * 0.16) * 100) / 100);
+      });
+
+      // Bottom drawers spaced along lower tier
+      const drawerCount = drawers.length;
+      drawers.forEach((t, i) => {
+        const step = 0.65 / Math.max(drawerCount, 1);
+        t.relX = Math.round((0.20 + (i + 0.5) * step) * 100) / 100;
+        t.relY = 0.84;
+      });
+
+      this.state.placedAccessories = [...topTools, ...midTools, ...bins, ...drawers];
+    }
+
+    this.syncBoard();
+    this.showNotification('✨ Smart Auto-Organize: Tools aligned to ergonomic workshop zones!');
+  }
+
+  showNotification(message, duration = 3200) {
+    let toast = document.getElementById('app-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'app-toast';
+      toast.className = 'fixed top-16 left-1/2 -translate-x-1/2 z-[10000] px-4 py-2.5 rounded-xl bg-slate-900/95 border border-orange-500/60 shadow-2xl backdrop-blur-md text-white text-xs font-semibold flex items-center gap-2 pointer-events-none transition-all duration-300 opacity-0 -translate-y-2';
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span><span>${message}</span>`;
+    toast.classList.remove('opacity-0', '-translate-y-2');
+    toast.classList.add('opacity-100', 'translate-y-0');
+
+    if (this._toastTimer) clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => {
+      toast.classList.remove('opacity-100', 'translate-y-0');
+      toast.classList.add('opacity-0', '-translate-y-2');
+    }, duration);
+  }
+
+  // ================= INTERACTIVE GUIDED TOUR ENGINE =================
+  getTourSteps() {
+    return [
+      {
+        id: 'welcome',
+        targetId: 'studio-canvas-container',
+        title: 'Welcome to OmniWall 3D!',
+        desc: 'This interactive university graduation project allows clients to customize modular 3D-printed workshop pegboard walls. Watch this automated demo as it configures sizes, materials, tools, and auto-organizes live!',
+        actionText: 'Initializing interactive studio...',
+        execute: () => {
+          document.getElementById('view-2d-btn')?.click();
+          document.getElementById('quote-modal')?.classList.add('hidden');
+        }
+      },
+      {
+        id: 'dimensions',
+        targetId: 'grid-cols',
+        fallbackTarget: 'preset-grid',
+        title: '1. Wall Dimensions & Modular Grid',
+        desc: 'Choose how many interlocking tiles you need for your space. Watch as the configurator automatically resizes to a 4×3 multi-panel setup (80×60 cm)!',
+        actionText: 'Resizing modular grid to 4×3 panels...',
+        execute: () => {
+          this.state.cols = 4;
+          this.state.rows = 3;
+          const colSlider = document.getElementById('grid-cols');
+          const rowSlider = document.getElementById('grid-rows');
+          const colVal = document.getElementById('col-val');
+          const rowVal = document.getElementById('row-val');
+          if (colSlider) colSlider.value = 4;
+          if (rowSlider) rowSlider.value = 3;
+          if (colVal) colVal.innerText = '4 cols';
+          if (rowVal) rowVal.innerText = '3 rows';
+          this.syncBoard();
+        }
+      },
+      {
+        id: 'materials',
+        targetSelector: '.material-card[data-material="cf_petg"]',
+        fallbackTarget: 'material-options-container',
+        title: '2. Material-Driven Shape Changes',
+        desc: 'Each 3D printing filament has custom physical properties. Notice how selecting "Carbon Fiber PETG" alters the physical tile geometry—adding 45° octagonal chamfers, carbon weave stippling, and reinforced brackets!',
+        actionText: 'Selecting Carbon Fiber PETG & transforming tile shape...',
+        execute: () => {
+          this.setMaterial('cf_petg');
+        }
+      },
+      {
+        id: 'colors',
+        targetId: 'panel-colors',
+        title: '3. Custom Filament Colors',
+        desc: 'Personalize the color palette to match your workshop tools or school colors. Watch the wall update in real-time to Industrial Charcoal & Safety Orange!',
+        actionText: 'Applying custom color scheme...',
+        execute: () => {
+          this.state.panelColor = '#303947';
+          this.state.accessoryColor = '#ea580c';
+          this.syncBoard();
+        }
+      },
+      {
+        id: 'tools',
+        targetId: 'accessories-list',
+        title: '4. Modular 3D Tool Catalog',
+        desc: 'Clients can choose from real 3D-printable mounts: drill cradles, wrench spanner rails, hammer hooks, and hardware bins. Let\'s place initial tools onto the board!',
+        actionText: 'Adding workshop tools to the board...',
+        execute: () => {
+          this.state.placedAccessories = [
+            { id: 'acc_demo_1', type: 'drill_mount', relX: 0.70, relY: 0.25 },
+            { id: 'acc_demo_2', type: 'wrench_rack', relX: 0.25, relY: 0.65 },
+            { id: 'acc_demo_3', type: 'screwdriver_rack', relX: 0.35, relY: 0.20 },
+            { id: 'acc_demo_4', type: 'storage_bin', relX: 0.82, relY: 0.75 },
+            { id: 'acc_demo_5', type: 'hammer_mount', relX: 0.50, relY: 0.60 }
+          ];
+          this.syncBoard();
+        }
+      },
+      {
+        id: 'auto_organize',
+        targetId: 'auto-organize-btn',
+        title: '5. Smart Auto-Organize Tool',
+        desc: 'No manual aligning needed! Clicking "Auto-Organize" instantly organizes all your tools into ergonomic zones: hand tools up top, heavy power tools centered, and stacked bins on the right!',
+        actionText: 'Running ergonomic auto-organization algorithm...',
+        execute: () => {
+          this.autoOrganizeTools();
+        }
+      },
+      {
+        id: 'view_3d',
+        targetId: 'view-3d-btn',
+        title: '6. Interactive 3D WebGL Inspector',
+        desc: 'Switch seamlessly to 3D mode! Inspect the physical 3D wall with realistic filament sheen, layer lines, depth, and mounting brackets. The camera rotates automatically.',
+        actionText: 'Switching to 3D WebGL mode & rotating camera...',
+        execute: () => {
+          document.getElementById('view-3d-btn')?.click();
+          if (this.viewer3d && this.viewer3d.controls) {
+            this.viewer3d.controls.autoRotate = true;
+            this.viewer3d.controls.autoRotateSpeed = 5.0;
+          }
+        }
+      },
+      {
+        id: 'quote',
+        targetId: 'open-quote-modal-btn-2',
+        fallbackTarget: 'open-quote-modal-btn',
+        title: '7. Live Cost, Weight & Print Quotation',
+        desc: 'Instant engineering Bill of Materials with exact filament weights (grams), 3D print hours, and total price in EGP or USD. Let\'s generate the official university project quote!',
+        actionText: 'Generating formal Bill of Materials quote...',
+        execute: () => {
+          document.getElementById('view-2d-btn')?.click();
+          if (this.viewer3d && this.viewer3d.controls) {
+            this.viewer3d.controls.autoRotate = false;
+          }
+          this.populateQuoteModal();
+          document.getElementById('quote-modal')?.classList.remove('hidden');
+        }
+      },
+      {
+        id: 'finish',
+        targetId: 'studio-canvas-container',
+        title: 'Ready to Build Your Own!',
+        desc: 'You\'ve seen how everything works! You can now freely place tools, change materials, inspect in 3D, or share your custom design link with anyone.',
+        actionText: 'Tour complete! Enjoy designing.',
+        execute: () => {
+          document.getElementById('quote-modal')?.classList.add('hidden');
+        }
+      }
+    ];
+  }
+
+  startInteractiveTour() {
+    this.tourActive = true;
+    this.tourAutoPlay = true;
+    this.currentTourStepIndex = 0;
+
+    const autoBtn = document.getElementById('tour-auto-btn');
+    if (autoBtn) {
+      autoBtn.innerHTML = `<i data-lucide="pause" class="w-3 h-3 text-amber-400"></i><span id="tour-auto-label">Pause</span>`;
+      if (window.lucide) window.lucide.createIcons({ root: autoBtn });
+    }
+
+    this.renderTourStep();
+  }
+
+  renderTourStep() {
+    const steps = this.getTourSteps();
+    const step = steps[this.currentTourStepIndex];
+    if (!step) {
+      this.stopTour();
+      return;
+    }
+
+    // Step counter
+    const counterEl = document.getElementById('tour-step-counter');
+    if (counterEl) counterEl.innerText = `Step ${this.currentTourStepIndex + 1} of ${steps.length}`;
+
+    // Title & description
+    const titleEl = document.getElementById('tour-title');
+    if (titleEl) titleEl.innerText = step.title;
+
+    const descEl = document.getElementById('tour-desc');
+    if (descEl) descEl.innerText = step.desc;
+
+    // Simulated action feedback pill
+    const feedbackEl = document.getElementById('tour-action-feedback');
+    const actionTextEl = document.getElementById('tour-action-text');
+    if (feedbackEl && actionTextEl) {
+      if (step.actionText) {
+        feedbackEl.classList.remove('hidden');
+        actionTextEl.innerText = step.actionText;
+      } else {
+        feedbackEl.classList.add('hidden');
+      }
+    }
+
+    // Prev button visibility
+    const prevBtn = document.getElementById('tour-prev-btn');
+    if (prevBtn) {
+      prevBtn.style.display = (this.currentTourStepIndex === 0) ? 'none' : 'block';
+    }
+
+    // Next button label
+    const nextBtn = document.getElementById('tour-next-btn');
+    if (nextBtn) {
+      if (this.currentTourStepIndex === steps.length - 1) {
+        nextBtn.innerHTML = `<span>Finish</span><i data-lucide="check" class="w-3.5 h-3.5"></i>`;
+      } else {
+        nextBtn.innerHTML = `<span>Next</span><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>`;
+      }
+      if (window.lucide) window.lucide.createIcons({ root: nextBtn });
+    }
+
+    // Execute step simulation
+    try {
+      step.execute();
+    } catch (err) {
+      console.error('Error executing tour step:', err);
+    }
+
+    // Reposition spotlight ring & floating card
+    this.positionTourSpotlight();
+
+    // Auto-advance if auto play is active
+    if (this.tourAutoPlay) {
+      if (this.tourTimer) clearTimeout(this.tourTimer);
+      if (this.currentTourStepIndex < steps.length - 1) {
+        this.tourTimer = setTimeout(() => {
+          if (this.tourActive && this.tourAutoPlay) {
+            this.nextTourStep();
+          }
+        }, 4200);
+      } else {
+        this.tourTimer = setTimeout(() => {
+          if (this.tourActive && this.tourAutoPlay) {
+            this.stopTour();
+          }
+        }, 5000);
+      }
+    }
+  }
+
+  nextTourStep() {
+    const steps = this.getTourSteps();
+    if (this.currentTourStepIndex < steps.length - 1) {
+      this.currentTourStepIndex++;
+      this.renderTourStep();
+    } else {
+      this.stopTour();
+    }
+  }
+
+  prevTourStep() {
+    if (this.currentTourStepIndex > 0) {
+      this.currentTourStepIndex--;
+      this.renderTourStep();
+    }
+  }
+
+  toggleTourAutoPlay() {
+    this.tourAutoPlay = !this.tourAutoPlay;
+    const btn = document.getElementById('tour-auto-btn');
+    if (this.tourAutoPlay) {
+      if (btn) btn.innerHTML = `<i data-lucide="pause" class="w-3 h-3 text-amber-400"></i><span id="tour-auto-label">Pause</span>`;
+      this.renderTourStep();
+    } else {
+      if (this.tourTimer) clearTimeout(this.tourTimer);
+      if (btn) btn.innerHTML = `<i data-lucide="play" class="w-3 h-3 text-emerald-400"></i><span id="tour-auto-label">Auto-Play</span>`;
+    }
+    if (window.lucide && btn) window.lucide.createIcons({ root: btn });
+  }
+
+  stopTour() {
+    this.tourActive = false;
+    if (this.tourTimer) clearTimeout(this.tourTimer);
+
+    document.getElementById('tour-spotlight')?.classList.add('hidden');
+    document.getElementById('tour-arrow')?.classList.add('hidden');
+    document.getElementById('tour-card')?.classList.add('hidden');
+    document.getElementById('quote-modal')?.classList.add('hidden');
+
+    if (this.viewer3d && this.viewer3d.controls) {
+      this.viewer3d.controls.autoRotate = false;
+    }
+    document.getElementById('view-2d-btn')?.click();
+
+    this.showNotification('🎉 Interactive tour completed! Start customizing your wall.');
+  }
+
+  positionTourSpotlight() {
+    if (!this.tourActive) return;
+    const step = this.getTourSteps()[this.currentTourStepIndex];
+    if (!step) return;
+
+    let el = null;
+    if (step.targetSelector) {
+      el = document.querySelector(step.targetSelector);
+    }
+    if (!el && step.targetId) {
+      el = document.getElementById(step.targetId);
+    }
+    if (!el && step.fallbackTarget) {
+      el = document.getElementById(step.fallbackTarget);
+    }
+    if (!el) {
+      el = document.getElementById('studio-canvas-container') || document.body;
+    }
+
+    try {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    } catch (e) {}
+
+    setTimeout(() => {
+      const rect = el.getBoundingClientRect();
+      const spotlight = document.getElementById('tour-spotlight');
+      const arrow = document.getElementById('tour-arrow');
+      const card = document.getElementById('tour-card');
+
+      if (!spotlight || !arrow || !card) return;
+
+      spotlight.classList.remove('hidden');
+      arrow.classList.remove('hidden');
+      card.classList.remove('hidden');
+
+      const pad = 14;
+      const w = Math.max(rect.width + pad * 2, 54);
+      const h = Math.max(rect.height + pad * 2, 54);
+      const left = Math.max(rect.left - pad, 6);
+      const top = Math.max(rect.top - pad, 6);
+
+      spotlight.style.width = `${w}px`;
+      spotlight.style.height = `${h}px`;
+      spotlight.style.left = `${left}px`;
+      spotlight.style.top = `${top}px`;
+      spotlight.style.borderRadius = (w / h > 1.8 || h / w > 1.8) ? '18px' : '9999px';
+
+      // Position arrow
+      const arrowX = rect.left + rect.width / 2 - 18;
+      let arrowY = rect.top - 46;
+      if (arrowY < 12) {
+        arrowY = rect.bottom + 12;
+        arrow.innerHTML = '<i data-lucide="arrow-up-circle" class="w-9 h-9 filter drop-shadow-[0_0_10px_rgba(249,115,22,0.9)]"></i>';
+      } else {
+        arrow.innerHTML = '<i data-lucide="arrow-down-circle" class="w-9 h-9 filter drop-shadow-[0_0_10px_rgba(249,115,22,0.9)]"></i>';
+      }
+      if (window.lucide) window.lucide.createIcons({ root: arrow });
+
+      arrow.style.left = `${Math.max(10, Math.min(window.innerWidth - 46, arrowX))}px`;
+      arrow.style.top = `${arrowY}px`;
+
+      // Position tour dialog card smartly
+      const cardWidth = Math.min(window.innerWidth - 28, 380);
+      const cardHeight = card.offsetHeight || 230;
+
+      let cardLeft = rect.left + rect.width / 2 - cardWidth / 2;
+      if (rect.left < 360 && window.innerWidth > 800) {
+        cardLeft = rect.right + 24;
+      } else if (rect.right > window.innerWidth - 380 && window.innerWidth > 800) {
+        cardLeft = rect.left - cardWidth - 24;
+      }
+
+      let cardTop = rect.bottom + 20;
+      if (cardTop + cardHeight > window.innerHeight - 16) {
+        cardTop = rect.top - cardHeight - 20;
+      }
+
+      cardLeft = Math.max(14, Math.min(window.innerWidth - cardWidth - 14, cardLeft));
+      cardTop = Math.max(14, Math.min(window.innerHeight - cardHeight - 14, cardTop));
+
+      card.style.left = `${cardLeft}px`;
+      card.style.top = `${cardTop}px`;
+    }, 120);
   }
 }
 
