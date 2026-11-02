@@ -635,9 +635,6 @@ class OmniWallApp {
     this.state.activeTiles = {};
 
     switch (presetKey) {
-      case 'reference_photo':
-        this.loadPrototypePreset();
-        break;
       case 'compact':
         this.state.cols = 3;
         this.state.rows = 2;
