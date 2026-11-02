@@ -1121,10 +1121,6 @@ class OmniWallApp {
     this.showNotification('✨ Plate Capacity Enforced: 1 tool per plate with anti-crowding spacing!');
   }
 
-    this.syncBoard();
-    this.showNotification('✨ Smart Auto-Organize: Tools aligned to ergonomic workshop zones!');
-  }
-
   showNotification(message, duration = 3200) {
     let toast = document.getElementById('app-toast');
     if (!toast) {
